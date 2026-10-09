@@ -6,9 +6,23 @@ import type { Category } from '../types/category';
 import type { DesignTask, TaskStatus, RevisionItem } from '../types/task';
 import type { UserProfile } from '../types/user';
 import { HOTELS, PERIODS, CATEGORIES } from '../data/constants';
-import { SEED_WORKS } from '../data/seedWorks';
-import { SEED_TASKS } from '../data/seedTasks';
+import { SEED_WORKS, SEED_TASKS } from '../data/seedWorks';
 import { sanitizeUrl, sanitizeText, safeJsonParse, hashPin } from '../utils/security';
+import {
+  checkDatabaseHealth,
+  fetchWorksFromApi,
+  saveWorkToApi,
+  deleteWorkFromApi,
+  bulkSyncWorksToApi,
+  clearAllWorksFromApi,
+  fetchTasksFromApi,
+  saveTaskToApi,
+  deleteTaskFromApi,
+  bulkSyncTasksToApi,
+  clearAllTasksFromApi,
+  fetchProfileFromApi,
+  saveProfileToApi,
+} from '../utils/apiSync';
 
 interface ToastState {
   id: string;
@@ -17,6 +31,9 @@ interface ToastState {
 }
 
 interface WorksContextType {
+  // TiDB Cloud & Connection Status
+  dbStatus: { connected: boolean; message: string };
+  checkDbConnection: () => Promise<void>;
   works: Work[];
   hotels: Hotel[];
   periods: Period[];
@@ -193,6 +210,40 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return DEFAULT_USER_PROFILE;
   });
 
+  // TiDB Cloud Database Connection Status & Initial Sync
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; message: string }>({
+    connected: false,
+    message: 'Checking...',
+  });
+
+  const checkDbConnection = async () => {
+    const status = await checkDatabaseHealth();
+    setDbStatus(status);
+  };
+
+  useEffect(() => {
+    checkDbConnection();
+
+    (async () => {
+      try {
+        const cloudWorks = await fetchWorksFromApi();
+        if (cloudWorks && cloudWorks.length > 0) {
+          setWorks(cloudWorks);
+        }
+        const cloudTasks = await fetchTasksFromApi();
+        if (cloudTasks && cloudTasks.length > 0) {
+          setTasks(cloudTasks);
+        }
+        const cloudProfile = await fetchProfileFromApi();
+        if (cloudProfile && cloudProfile.name) {
+          setUserProfile((prev) => ({ ...prev, ...cloudProfile }));
+        }
+      } catch (e) {
+        console.warn('Initial TiDB sync bypassed:', e);
+      }
+    })();
+  }, []);
+
   const updateUserProfile = (updates: Partial<UserProfile>) => {
     setUserProfile((prev) => {
       const updated = { ...prev, ...updates };
@@ -201,6 +252,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (e) {
         console.warn('Failed to save user profile:', e);
       }
+      saveProfileToApi(updated);
       return updated;
     });
     showToast('Profil intern berhasil diperbarui!', 'success');
@@ -213,6 +265,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (e) {
       console.warn('Failed to reset user profile:', e);
     }
+    saveProfileToApi(DEFAULT_USER_PROFILE);
     showToast('Profil dikembalikan ke setelan awal', 'info');
   };
 
@@ -456,6 +509,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updatedAt: now,
     };
     setWorks((prev) => [created, ...prev]);
+    saveWorkToApi(created);
     setSortBy('newest');
     showToast(`Added deliverable "${created.title}"`, 'success');
   };
@@ -474,7 +528,14 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     setWorks((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, ...sanitizedUpdates, updatedAt: new Date().toISOString() } : w))
+      prev.map((w) => {
+        if (w.id === id) {
+          const updated = { ...w, ...sanitizedUpdates, updatedAt: new Date().toISOString() };
+          saveWorkToApi(updated);
+          return updated;
+        }
+        return w;
+      })
     );
     showToast('Deliverable metadata updated', 'success');
   };
@@ -482,6 +543,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteWork = (id: string) => {
     const item = works.find((w) => w.id === id);
     setWorks((prev) => prev.filter((w) => w.id !== id));
+    deleteWorkFromApi(id);
     if (selectedWorkForDetail?.id === id) {
       setSelectedWorkForDetail(null);
     }
@@ -502,6 +564,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updatedAt: now,
     };
     setWorks((prev) => [duplicated, ...prev]);
+    saveWorkToApi(duplicated);
     showToast(`Duplicated "${original.title}"`, 'success');
   };
 
@@ -523,6 +586,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updatedAt: new Date().toISOString(),
     };
     setTasks((prev) => [newTask, ...prev]);
+    saveTaskToApi(newTask);
     showToast(`Request "${newTask.title}" berhasil ditambahkan!`, 'success');
   };
 
@@ -540,7 +604,14 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...sanitizedUpdates, updatedAt: new Date().toISOString() } : t))
+      prev.map((t) => {
+        if (t.id === id) {
+          const updated = { ...t, ...sanitizedUpdates, updatedAt: new Date().toISOString() };
+          saveTaskToApi(updated);
+          return updated;
+        }
+        return t;
+      })
     );
     if (selectedTaskForDetail && selectedTaskForDetail.id === id) {
       setSelectedTaskForDetail((prev) => (prev ? { ...prev, ...sanitizedUpdates, updatedAt: new Date().toISOString() } : null));
@@ -551,6 +622,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteTask = (id: string) => {
     const task = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    deleteTaskFromApi(id);
     if (selectedTaskForDetail?.id === id) {
       setSelectedTaskForDetail(null);
     }
@@ -598,6 +670,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           updatedAt: now,
         };
         setWorks((prev) => [newWork, ...prev]);
+        saveWorkToApi(newWork);
         updatedConvertedWorkId = workId;
         showToast(`🎉 Tugas "${task.title}" selesai & otomatis masuk ke My Works!`, 'success');
       } else {
@@ -613,32 +686,21 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       showToast(`Status tugas dipindah ke: ${labels[nextStatus]}`, 'info');
     }
 
+    const updatedTask: DesignTask = {
+      ...task,
+      status: nextStatus,
+      convertedWorkId: updatedConvertedWorkId,
+      completedAt: nextStatus === 'completed' ? (task.completedAt || now.slice(0, 10)) : task.completedAt,
+      updatedAt: now,
+    };
+    saveTaskToApi(updatedTask);
+
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              status: nextStatus,
-              convertedWorkId: updatedConvertedWorkId,
-              completedAt: nextStatus === 'completed' ? (t.completedAt || now.slice(0, 10)) : t.completedAt,
-              updatedAt: now,
-            }
-          : t
-      )
+      prev.map((t) => (t.id === id ? updatedTask : t))
     );
 
     if (selectedTaskForDetail && selectedTaskForDetail.id === id) {
-      setSelectedTaskForDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: nextStatus,
-              convertedWorkId: updatedConvertedWorkId,
-              completedAt: nextStatus === 'completed' ? (prev.completedAt || now.slice(0, 10)) : prev.completedAt,
-              updatedAt: now,
-            }
-          : null
-      );
+      setSelectedTaskForDetail(updatedTask);
     }
   };
 
@@ -653,12 +715,14 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
-          return {
+          const updated: DesignTask = {
             ...t,
             revisions: [...t.revisions, newRev],
             status: t.status === 'completed' ? 'in_review' : t.status,
             updatedAt: new Date().toISOString(),
           };
+          saveTaskToApi(updated);
+          return updated;
         }
         return t;
       })
@@ -682,10 +746,12 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
-          const updated = t.revisions.map((r) =>
+          const updatedRevisions = t.revisions.map((r) =>
             r.id === revisionId ? { ...r, resolved: !r.resolved } : r
           );
-          return { ...t, revisions: updated, updatedAt: new Date().toISOString() };
+          const updated: DesignTask = { ...t, revisions: updatedRevisions, updatedAt: new Date().toISOString() };
+          saveTaskToApi(updated);
+          return updated;
         }
         return t;
       })
@@ -741,19 +807,18 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setWorks((prev) => [newWork, ...prev]);
+    saveWorkToApi(newWork);
     const now = new Date().toISOString();
+    const updatedTask: DesignTask = {
+      ...task,
+      status: 'completed',
+      convertedWorkId: workId,
+      completedAt: task.completedAt || now.slice(0, 10),
+      updatedAt: now,
+    };
+    saveTaskToApi(updatedTask);
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              status: 'completed',
-              convertedWorkId: workId,
-              completedAt: t.completedAt || now.slice(0, 10),
-              updatedAt: now,
-            }
-          : t
-      )
+      prev.map((t) => (t.id === taskId ? updatedTask : t))
     );
     setSelectedTaskForDetail(null);
     clearFilters();
@@ -808,19 +873,22 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
 
     setWorks((prev) => [...newWorksList, ...prev]);
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (updatedIdsMap.has(t.id)) {
-          return {
-            ...t,
-            convertedWorkId: updatedIdsMap.get(t.id),
-            completedAt: t.completedAt || now.slice(0, 10),
-            updatedAt: now,
-          };
-        }
-        return t;
-      })
-    );
+    bulkSyncWorksToApi(newWorksList);
+
+    const updatedTasksList = tasks.map((t) => {
+      if (updatedIdsMap.has(t.id)) {
+        return {
+          ...t,
+          convertedWorkId: updatedIdsMap.get(t.id),
+          completedAt: t.completedAt || now.slice(0, 10),
+          updatedAt: now,
+        };
+      }
+      return t;
+    });
+    setTasks(updatedTasksList);
+    bulkSyncTasksToApi(updatedTasksList);
+
     showToast(`⚡ Berhasil memasukkan ${newWorksList.length} tugas selesai ke My Works!`, 'success');
   };
 
@@ -863,6 +931,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             draftImageUri: w.draftImageUri ? sanitizeUrl(w.draftImageUri) : undefined,
           }));
           setWorks(sanitizedWorks);
+          bulkSyncWorksToApi(sanitizedWorks);
           if (Array.isArray(parsed.tasks)) {
             const sanitizedTasks: DesignTask[] = parsed.tasks.map((t: any) => ({
               ...t,
@@ -872,6 +941,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               referenceUrl: t.referenceUrl ? sanitizeUrl(t.referenceUrl) : undefined,
             }));
             setTasks(sanitizedTasks);
+            bulkSyncTasksToApi(sanitizedTasks);
           }
           showToast(`Berhasil restore backup (${sanitizedWorks.length} karya, ${parsed.tasks?.length || 0} tugas)!`, 'success');
           return true;
@@ -887,6 +957,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           draftImageUri: w.draftImageUri ? sanitizeUrl(w.draftImageUri) : undefined,
         }));
         setWorks(sanitizedWorks);
+        bulkSyncWorksToApi(sanitizedWorks);
         showToast(`Berhasil import ${sanitizedWorks.length} karya!`, 'success');
         return true;
       }
@@ -900,6 +971,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearAllTasks = (removeConvertedWorks: boolean = true) => {
     setTasks([]);
+    clearAllTasksFromApi();
     try {
       localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify([]));
       localStorage.removeItem('designlog_v2_tasks_ledger');
@@ -914,6 +986,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (e) {
           console.warn(e);
         }
+        bulkSyncWorksToApi(cleaned);
         return cleaned;
       });
     }
@@ -922,6 +995,7 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearAllWorks = () => {
     setWorks([]);
+    clearAllWorksFromApi();
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
       localStorage.removeItem('designlog_v2_works_ledger');
@@ -934,13 +1008,15 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const resetToDefault = () => {
     setWorks(SEED_WORKS);
     setTasks(SEED_TASKS);
+    clearAllWorksFromApi();
+    clearAllTasksFromApi();
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_WORKS));
       localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(SEED_TASKS));
       localStorage.removeItem('designlog_v2_works_ledger');
       localStorage.removeItem('designlog_v2_tasks_ledger');
     } catch (e) {
-      console.warn(e);
+      console.warn('Failed to clear works and tasks:', e);
     }
     showToast('Semua karya dan tugas berhasil dikosongkan bersih', 'info');
   };
@@ -1131,6 +1207,10 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSecurityPin,
         removeSecurityPin,
         requireEditorAuth,
+
+        // TiDB Cloud & Connection Status
+        dbStatus,
+        checkDbConnection,
       }}
     >
       {children}
