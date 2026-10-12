@@ -14,7 +14,7 @@ import {
 import { useWorks } from '../../context/WorksContext';
 
 export const PdfPreviewModal: React.FC = () => {
-  const { isPdfModalOpen, setIsPdfModalOpen, showToast } = useWorks();
+  const { isPdfModalOpen, setIsPdfModalOpen, showToast, works } = useWorks();
 
   const [currentSpread, setCurrentSpread] = useState<number>(1); // 1 = Spread 1-2, 2 = Spread 3-4
   const [zoomLevel, setZoomLevel] = useState<number>(100);
@@ -294,7 +294,7 @@ export const PdfPreviewModal: React.FC = () => {
                     </h3>
 
                     <p className="font-body-md text-sm text-on-surface-variant leading-relaxed text-justify">
-                      This archival catalog establishes an official chronological record of 48 design deliverables formulated
+                      This archival catalog establishes an official chronological record of {works.length} design deliverables formulated
                       for Horison Inn Antawirya Semarang and Horison Resort Antawirya Jepara. Collateral bridges dual-tier
                       hospitality narratives: the rigorous, urban business efficiency of the Semarang metro unit alongside
                       the maritime leisure, cultural heritage, and event-centric cadence of the coastal Jepara resort.
@@ -536,7 +536,7 @@ export const PdfPreviewModal: React.FC = () => {
                   {[
                     {
                       title: 'Raster Assets Embedded ≥ 300 DPI',
-                      desc: 'All 48 deliverables render above high-resolution threshold.',
+                      desc: `All ${works.length} deliverables render above high-resolution threshold.`,
                     },
                     {
                       title: 'CMYK FOGRA39 & sRGB Embedded',

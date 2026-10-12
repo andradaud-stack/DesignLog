@@ -119,7 +119,7 @@ export const SettingsView: React.FC = () => {
 
   const handleReset = () => {
     requireEditorAuth(() => {
-      if (window.confirm('Reset ledger back to original 48 audited graphic design deliverables?')) {
+      if (window.confirm('Reset semua karya dan tugas ke kondisi awal yang bersih?')) {
         resetToDefault();
       }
     });

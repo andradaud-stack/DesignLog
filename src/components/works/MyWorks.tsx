@@ -81,6 +81,9 @@ export const MyWorks: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const semarangCount = works.filter((w) => w.hotelId === 'hotel_semarang').length;
+  const jeparaCount = works.filter((w) => w.hotelId === 'hotel_jepara').length;
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -283,7 +286,7 @@ export const MyWorks: React.FC = () => {
               }`}
             >
               <Building className="w-3.5 h-3.5" />
-              <span>Semarang (26)</span>
+              <span>Semarang ({semarangCount})</span>
             </button>
             <button
               type="button"
@@ -295,7 +298,7 @@ export const MyWorks: React.FC = () => {
               }`}
             >
               <Palmtree className="w-3.5 h-3.5" />
-              <span>Jepara (22)</span>
+              <span>Jepara ({jeparaCount})</span>
             </button>
           </div>
 
