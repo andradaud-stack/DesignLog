@@ -55,7 +55,7 @@ export const Dashboard: React.FC = () => {
     { id: 'cat_event', name: 'Event & Workshop', count: works.filter((w) => w.categoryId === 'cat_event').length, color: 'bg-indigo-500', text: 'text-indigo-500' },
     { id: 'cat_greeting', name: 'Greeting Cards', count: works.filter((w) => w.categoryId === 'cat_greeting').length, color: 'bg-emerald-500', text: 'text-emerald-500' },
     { id: 'cat_social_media', name: 'Social Media Feeds', count: works.filter((w) => w.categoryId === 'cat_social_media').length, color: 'bg-cyan-500', text: 'text-cyan-500' },
-    { id: 'cat_backdrop', name: 'Backdrop / Stage', count: works.filter((w) => w.categoryId === 'cat_backdrop').length, color: 'bg-purple-500', text: 'text-purple-500' },
+    { id: 'cat_backdrop', name: 'Backdrop/Banner', count: works.filter((w) => w.categoryId === 'cat_backdrop').length, color: 'bg-purple-500', text: 'text-purple-500' },
     { id: 'cat_marketing', name: 'Marketing Collateral', count: works.filter((w) => w.categoryId === 'cat_marketing').length, color: 'bg-rose-500', text: 'text-rose-500' },
     { id: 'cat_lainnya', name: 'Lainnya', count: works.filter((w) => w.categoryId === 'cat_lainnya').length, color: 'bg-slate-500', text: 'text-slate-500' },
   ];

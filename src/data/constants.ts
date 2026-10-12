@@ -72,7 +72,7 @@ export const CATEGORIES: Category[] = [
   { id: 'cat_greeting', name: 'Greeting', color: '#76777b', deliverablesCount: 0 },
   { id: 'cat_social_media', name: 'Social Media', color: '#46464b', deliverablesCount: 0 },
   { id: 'cat_video_reels', name: 'Video & Reels', color: '#8b5cf6', deliverablesCount: 0 },
-  { id: 'cat_backdrop', name: 'Backdrop', color: '#c7c6cb', deliverablesCount: 0 },
+  { id: 'cat_backdrop', name: 'Backdrop/Banner', color: '#c7c6cb', deliverablesCount: 0 },
   { id: 'cat_marketing', name: 'Marketing', color: '#862201', deliverablesCount: 0 },
   { id: 'cat_lainnya', name: 'Lainnya', color: '#5e5e62', deliverablesCount: 0 },
 ];

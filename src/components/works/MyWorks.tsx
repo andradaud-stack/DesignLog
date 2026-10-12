@@ -16,8 +16,6 @@ import {
   Maximize2,
   Trash2,
   Copy,
-  FileDown,
-  FileUp,
   AlertTriangle,
   Video,
   Sparkles,
@@ -52,16 +50,12 @@ export const MyWorks: React.FC = () => {
     setSelectedWorkForDetail,
     deleteWork,
     duplicateWork,
-    clearAllWorks,
-    exportBackupJson,
-    importBackupJson,
     openPresentation,
     showToast,
     requireEditorAuth,
   } = useWorks();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const jsonBackupInputRef = useRef<HTMLInputElement>(null);
   const [workToDelete, setWorkToDelete] = useState<Work | null>(null);
 
   // Pagination
@@ -86,6 +80,13 @@ export const MyWorks: React.FC = () => {
   const jeparaCount = works.filter((w) => w.hotelId === 'hotel_jepara' || w.hotelId === 'hotel_both').length;
   const bothCount = works.filter((w) => w.hotelId === 'hotel_both').length;
 
+  // Dynamic filter counts based on actual works
+  const finalWorksCount = works.filter((w) => w.status === 'final').length;
+  const revisionWorksCount = works.filter((w) => w.status === 'revision').length;
+  const inProgressWorksCount = works.filter((w) => w.status === 'in_progress').length;
+  const draftWorksCount = works.filter((w) => w.status === 'draft').length;
+  const getCatCount = (catId: string) => works.filter((w) => w.categoryId === catId).length;
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -103,22 +104,6 @@ export const MyWorks: React.FC = () => {
     showToast(`Downloading deliverable package for "${work.title}"`, 'success');
   };
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    requireEditorAuth(() => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        if (text) {
-          importBackupJson(text);
-        }
-      };
-      reader.readAsText(file);
-    });
-    e.target.value = '';
-  };
-
   const getCategoryName = (catId: string) => {
     const map: Record<string, string> = {
       cat_hari_nasional: 'Hari Nasional',
@@ -127,7 +112,7 @@ export const MyWorks: React.FC = () => {
       cat_greeting: 'Greeting',
       cat_social_media: 'Social Media',
       cat_video_reels: 'Video & Reels',
-      cat_backdrop: 'Backdrop',
+      cat_backdrop: 'Backdrop/Banner',
       cat_marketing: 'Marketing',
       cat_lainnya: 'Lainnya',
     };
@@ -175,35 +160,6 @@ export const MyWorks: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* JSON Backup Input */}
-          <input
-            ref={jsonBackupInputRef}
-            type="file"
-            accept=".json,application/json"
-            className="hidden"
-            onChange={handleImportFile}
-          />
-
-          <button
-            type="button"
-            onClick={exportBackupJson}
-            className="p-2.5 sm:px-3 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-navy-800 dark:hover:bg-navy-700 text-slate-700 dark:text-slate-300 font-semibold text-xs tracking-wide transition-all flex items-center gap-1.5 border border-slate-200/80 dark:border-navy-700 shadow-sm"
-            title="Download JSON Backup of all deliverables"
-          >
-            <FileDown className="w-4 h-4 text-emerald-500" />
-            <span className="hidden sm:inline">Export JSON</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => jsonBackupInputRef.current?.click()}
-            className="p-2.5 sm:px-3 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-navy-800 dark:hover:bg-navy-700 text-slate-700 dark:text-slate-300 font-semibold text-xs tracking-wide transition-all flex items-center gap-1.5 border border-slate-200/80 dark:border-navy-700 shadow-sm"
-            title="Import deliverables from JSON backup file"
-          >
-            <FileUp className="w-4 h-4 text-electric-500" />
-            <span className="hidden sm:inline">Import JSON</span>
-          </button>
-
           <button
             type="button"
             onClick={() => openPresentation()}
@@ -213,24 +169,6 @@ export const MyWorks: React.FC = () => {
             <Maximize2 className="w-4 h-4 text-amber-500" />
             <span className="hidden sm:inline">Present Showcase</span>
           </button>
-
-          {works.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                requireEditorAuth(() => {
-                  if (window.confirm('Yakin ingin mengosongkan semua karya di My Works? (Profil intern kamu tetap aman)')) {
-                    clearAllWorks();
-                  }
-                });
-              }}
-              className="p-2.5 sm:px-3 sm:py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold text-xs tracking-wide transition-all flex items-center gap-1.5 border border-rose-500/20 shadow-sm active:scale-95"
-              title="Kosongkan semua karya di My Works"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Reset Semua Karya</span>
-            </button>
-          )}
 
           <button
             type="button"
@@ -355,16 +293,16 @@ export const MyWorks: React.FC = () => {
               onChange={(e) => setActiveCategory(e.target.value)}
               className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-electric-500"
             >
-              <option value="all">All Categories</option>
-              <option value="cat_hari_nasional">Hari Nasional (14)</option>
-              <option value="cat_promo">Promo (10)</option>
-              <option value="cat_event">Event (8)</option>
-              <option value="cat_greeting">Greeting (5)</option>
-              <option value="cat_social_media">Social Media (4)</option>
-              <option value="cat_video_reels">Video & Reels (3)</option>
-              <option value="cat_backdrop">Backdrop (3)</option>
-              <option value="cat_marketing">Marketing (2)</option>
-              <option value="cat_lainnya">Lainnya (2)</option>
+              <option value="all">All Categories ({works.length})</option>
+              <option value="cat_hari_nasional">Hari Nasional ({getCatCount('cat_hari_nasional')})</option>
+              <option value="cat_promo">Promo ({getCatCount('cat_promo')})</option>
+              <option value="cat_event">Event ({getCatCount('cat_event')})</option>
+              <option value="cat_greeting">Greeting ({getCatCount('cat_greeting')})</option>
+              <option value="cat_social_media">Social Media ({getCatCount('cat_social_media')})</option>
+              <option value="cat_video_reels">Video &amp; Reels ({getCatCount('cat_video_reels')})</option>
+              <option value="cat_backdrop">Backdrop/Banner ({getCatCount('cat_backdrop')})</option>
+              <option value="cat_marketing">Marketing ({getCatCount('cat_marketing')})</option>
+              <option value="cat_lainnya">Lainnya ({getCatCount('cat_lainnya')})</option>
             </select>
           </div>
 
@@ -390,11 +328,11 @@ export const MyWorks: React.FC = () => {
               onChange={(e) => setActiveStatus(e.target.value as WorkStatus | 'all')}
               className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-electric-500"
             >
-              <option value="all">All Statuses</option>
-              <option value="final">Final Signoff (41)</option>
-              <option value="revision">In Revision (4)</option>
-              <option value="in_progress">In Progress (2)</option>
-              <option value="draft">Draft (1)</option>
+              <option value="all">All Statuses ({works.length})</option>
+              <option value="final">Final Signoff ({finalWorksCount})</option>
+              <option value="revision">In Revision ({revisionWorksCount})</option>
+              <option value="in_progress">In Progress ({inProgressWorksCount})</option>
+              <option value="draft">Draft ({draftWorksCount})</option>
             </select>
           </div>
 

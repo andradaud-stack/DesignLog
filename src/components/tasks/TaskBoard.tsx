@@ -319,30 +319,6 @@ export const TaskBoard: React.FC = () => {
         </div>
       </div>
 
-      {/* Pristine Clean Slate Banner when zero tasks */}
-      {tasks.length === 0 && (
-        <div className="p-5 sm:p-6 rounded-3xl bg-linear-to-r from-electric-500/10 via-amber-500/10 to-teal-500/10 border border-electric-500/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left shadow-xs">
-          <div className="space-y-1">
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span className="text-xl">✨</span>
-              <h3 className="font-display font-bold text-base text-navy-950 dark:text-white">
-                Papan Tugas Bersih &amp; Siap Dipakai!
-              </h3>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-xl">
-              Semua tugas contoh telah di-reset dan dikosongkan. Profil kamu tetap tersimpan aman. Mulai catat permintaan desain harian baru dari departemen hotel dengan klik tombol di samping.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsAddTaskModalOpen(true)}
-            className="px-4 py-2.5 bg-electric-600 hover:bg-electric-500 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-md shadow-electric-500/25 flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Buat Tugas Pertama</span>
-          </button>
-        </div>
-      )}
 
       {/* STATS STRIP (Dynamically reflects day filter) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
