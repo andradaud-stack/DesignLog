@@ -9,6 +9,7 @@ import {
   Trash2,
   Layers,
   Video,
+  Calendar,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useWorks } from '../../context/WorksContext';
@@ -32,6 +33,8 @@ export const AddWorkModal: React.FC = () => {
 
   const isEditing = !!editingWork;
 
+  const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+
   const [title, setTitle] = useState('');
   const [hotelId, setHotelId] = useState('hotel_semarang');
   const [periodId, setPeriodId] = useState('period_2026_2');
@@ -39,8 +42,9 @@ export const AddWorkModal: React.FC = () => {
   const [status, setStatus] = useState<WorkStatus>('final');
   const [description, setDescription] = useState('');
   const [dateCertainty, setDateCertainty] = useState<DateCertainty>('exact');
-  const [date, setDate] = useState('2026-10-06');
-  const [month, setMonth] = useState<number>(10);
+  const [date, setDate] = useState(getTodayDateString());
+  const [month, setMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(() => new Date().getFullYear());
   const [revisionCount, setRevisionCount] = useState<number>(1);
   const [dimensions, setDimensions] = useState('1080 × 1080 px');
   const [colorSpace, setColorSpace] = useState('RGB / FEED');
@@ -57,6 +61,20 @@ export const AddWorkModal: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftFileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (newDate) {
+      const parts = newDate.split('-');
+      if (parts.length >= 2) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        if (!isNaN(m)) setMonth(m);
+        if (!isNaN(y)) setYear(y);
+        setDateCertainty('exact');
+      }
+    }
+  };
+
   useEffect(() => {
     if (editingWork) {
       setTitle(editingWork.title);
@@ -65,9 +83,19 @@ export const AddWorkModal: React.FC = () => {
       setCategoryId(editingWork.categoryId);
       setStatus(editingWork.status);
       setDescription(editingWork.description);
-      setDateCertainty(editingWork.dateCertainty);
-      setDate(editingWork.date || '2026-10-06');
-      setMonth(editingWork.month || 10);
+      setDateCertainty(editingWork.dateCertainty || 'exact');
+      const workDate = editingWork.date || (editingWork.createdAt ? editingWork.createdAt.slice(0, 10) : getTodayDateString());
+      setDate(workDate);
+      if (workDate) {
+        const parts = workDate.split('-');
+        if (parts.length >= 2) {
+          setYear(parseInt(parts[0], 10) || 2026);
+          setMonth(parseInt(parts[1], 10) || 10);
+        }
+      } else {
+        setMonth(editingWork.month || 10);
+        setYear(editingWork.year || 2026);
+      }
       setRevisionCount(editingWork.revisionCount);
       setDimensions(editingWork.dimensions);
       setColorSpace(editingWork.colorSpace);
@@ -86,8 +114,10 @@ export const AddWorkModal: React.FC = () => {
       setStatus('final');
       setDescription('');
       setDateCertainty('exact');
-      setDate('2026-10-06');
-      setMonth(10);
+      const today = getTodayDateString();
+      setDate(today);
+      setMonth(new Date().getMonth() + 1);
+      setYear(new Date().getFullYear());
       setRevisionCount(1);
       setDimensions('1080 × 1080 px');
       setColorSpace('RGB / FEED');
@@ -208,6 +238,10 @@ export const AddWorkModal: React.FC = () => {
       : 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800&q=80';
     const finalImageUri = imageUri.trim() || defaultFallback;
 
+    const finalDate = date.trim() || getTodayDateString();
+    const finalYear = finalDate ? parseInt(finalDate.split('-')[0], 10) || year : year;
+    const finalMonth = finalDate ? parseInt(finalDate.split('-')[1], 10) || month : month;
+
     requireEditorAuth(() => {
       if (isEditing && editingWork) {
         updateWork(editingWork.id, {
@@ -218,9 +252,9 @@ export const AddWorkModal: React.FC = () => {
           status,
           description,
           dateCertainty,
-          date: dateCertainty === 'exact' ? date : null,
-          month,
-          year: 2026,
+          date: finalDate,
+          month: finalMonth,
+          year: finalYear,
           revisionCount,
           dimensions,
           colorSpace,
@@ -241,9 +275,9 @@ export const AddWorkModal: React.FC = () => {
           status,
           description,
           dateCertainty,
-          date: dateCertainty === 'exact' ? date : null,
-          month,
-          year: 2026,
+          date: finalDate,
+          month: finalMonth,
+          year: finalYear,
           revisionCount,
           dimensions,
           colorSpace,
@@ -566,8 +600,55 @@ export const AddWorkModal: React.FC = () => {
             </div>
           </div>
 
+          {/* Tanggal Karya / Publikasi & Internship Cohort */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-navy-950 dark:text-white flex items-center gap-1.5 text-xs">
+                  <Calendar className="w-3.5 h-3.5 text-electric-500" />
+                  <span>Tanggal Karya / Selesai Dibuat *</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleDateChange(getTodayDateString())}
+                  className="text-[10px] text-electric-500 hover:text-electric-600 font-bold hover:underline transition-colors"
+                >
+                  Set Hari Ini
+                </button>
+              </div>
+              <input
+                type="date"
+                required
+                value={date}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-electric-500 font-medium text-xs sm:text-sm cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-400 block">
+                Bisa dipilih bebas: tanggal hari ini, kemarin, atau tanggal tugas sebelumnya.
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-navy-950 dark:text-white">Internship Cohort / Periode</label>
+              <select
+                value={periodId}
+                onChange={(e) => setPeriodId(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-electric-500 font-medium"
+              >
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] text-slate-400 block">
+                Periode penempatan magang aktif.
+              </span>
+            </div>
+          </div>
+
           {/* Status & Revision Count */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="font-bold text-navy-950 dark:text-white">Editorial Status</label>
               <select
@@ -592,21 +673,6 @@ export const AddWorkModal: React.FC = () => {
                 onChange={(e) => setRevisionCount(parseInt(e.target.value) || 0)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white font-mono"
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="font-bold text-navy-950 dark:text-white">Internship Cohort</label>
-              <select
-                value={periodId}
-                onChange={(e) => setPeriodId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-electric-500 font-medium"
-              >
-                {periods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
 

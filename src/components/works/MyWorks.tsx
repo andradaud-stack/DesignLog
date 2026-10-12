@@ -129,6 +129,20 @@ export const MyWorks: React.FC = () => {
     return map[catId] || catId;
   };
 
+  const formatWorkDisplayDate = (dateStr?: string | null, fallbackMonth?: number | null) => {
+    if (!dateStr) return fallbackMonth ? `Okt 2026` : '-';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+    } catch {
+      // fallback
+    }
+    return dateStr;
+  };
+
   const hasActiveFilters =
     activeScope !== 'all' ||
     activePeriod !== 'all' ||
@@ -586,7 +600,7 @@ export const MyWorks: React.FC = () => {
                         <span className="font-semibold text-electric-600 dark:text-electric-400 uppercase tracking-wider text-[10px]">
                           {getCategoryName(work.categoryId)}
                         </span>
-                        <span className="font-mono">{work.date || 'Oct 2026'}</span>
+                        <span className="font-mono text-slate-500 dark:text-slate-400">{formatWorkDisplayDate(work.date, work.month)}</span>
                       </div>
 
                       <h3 className="font-display font-bold text-sm text-navy-950 dark:text-white line-clamp-1 group-hover:text-electric-500 transition-colors">
@@ -676,7 +690,7 @@ export const MyWorks: React.FC = () => {
                           <div className="text-[10px] text-slate-400">{work.colorSpace}</div>
                         </td>
                         <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400">
-                          {work.date || `Month ${work.month || 10}`}
+                          {formatWorkDisplayDate(work.date, work.month)}
                         </td>
                         <td className="py-3 px-4">
                           <span

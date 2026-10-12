@@ -655,9 +655,9 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               : 'cat_social_media',
           status: 'final',
           description: `${task.description}\n\n[Dibuat dari permintaan ${task.requesterName} - Dept ${task.department.toUpperCase()}]`,
-          date: now.slice(0, 10),
-          month: 10,
-          year: 2026,
+          date: task.completedAt || task.deadline || now.slice(0, 10),
+          month: (task.completedAt || task.deadline) ? parseInt((task.completedAt || task.deadline).split('-')[1], 10) || 10 : 10,
+          year: (task.completedAt || task.deadline) ? parseInt((task.completedAt || task.deadline).split('-')[0], 10) || 2026 : 2026,
           dateCertainty: 'exact',
           revisionCount: task.revisions.length,
           dimensions: task.targetDimensions || (task.mediaType === 'video' ? '1080 × 1920 px' : '1080 × 1080 px'),
@@ -791,9 +791,9 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           : 'cat_social_media',
       status: 'final',
       description: `${task.description}\n\n[Dibuat dari permintaan ${task.requesterName} - Dept ${task.department.toUpperCase()}]`,
-      date: new Date().toISOString().slice(0, 10),
-      month: 10,
-      year: 2026,
+      date: task.completedAt || task.deadline || new Date().toISOString().slice(0, 10),
+      month: (task.completedAt || task.deadline) ? parseInt((task.completedAt || task.deadline).split('-')[1], 10) || 10 : 10,
+      year: (task.completedAt || task.deadline) ? parseInt((task.completedAt || task.deadline).split('-')[0], 10) || 2026 : 2026,
       dateCertainty: 'exact',
       revisionCount: task.revisions.length,
       dimensions: task.targetDimensions || (task.mediaType === 'video' ? '1080 × 1920 px' : '1080 × 1080 px'),
@@ -1078,21 +1078,21 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const aIsUser = isUserItem(a);
         const bIsUser = isUserItem(b);
 
-        // User-created and converted items always appear at the very top
+        // User-created and converted items appear before seeds
         if (aIsUser && !bIsUser) return -1;
         if (!aIsUser && bIsUser) return 1;
 
-        // Among user-created items, the most recently added appears first
-        if (aIsUser && bIsUser) {
-          const timeA = new Date(a.createdAt).getTime() || 0;
-          const timeB = new Date(b.createdAt).getTime() || 0;
-          return timeB - timeA;
+        // Primary sort: Deliverable date descending
+        const dateA = a.date || a.createdAt?.slice(0, 10) || '';
+        const dateB = b.date || b.createdAt?.slice(0, 10) || '';
+        if (dateA !== dateB) {
+          return dateB.localeCompare(dateA);
         }
 
-        // Seed deliverables sorted by date descending
-        const dateA = a.date || a.createdAt;
-        const dateB = b.date || b.createdAt;
-        return dateB.localeCompare(dateA);
+        // Secondary tiebreaker: creation timestamp
+        const timeA = new Date(a.createdAt).getTime() || 0;
+        const timeB = new Date(b.createdAt).getTime() || 0;
+        return timeB - timeA;
       }
 
       if (sortBy === 'recently_added') {
@@ -1104,9 +1104,14 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (sortBy === 'oldest') {
-        const dateA = a.date || a.createdAt;
-        const dateB = b.date || b.createdAt;
-        return dateA.localeCompare(dateB);
+        const dateA = a.date || a.createdAt?.slice(0, 10) || '';
+        const dateB = b.date || b.createdAt?.slice(0, 10) || '';
+        if (dateA !== dateB) {
+          return dateA.localeCompare(dateB);
+        }
+        const timeA = new Date(a.createdAt).getTime() || 0;
+        const timeB = new Date(b.createdAt).getTime() || 0;
+        return timeA - timeB;
       }
 
       if (sortBy === 'hotel') {

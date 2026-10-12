@@ -304,7 +304,19 @@ export const WorkDetailModal: React.FC = () => {
             <div>
               <span className="text-[10px] text-slate-400 uppercase font-bold block">Publication Date</span>
               <span className="font-mono text-xs font-bold text-navy-950 dark:text-white mt-0.5 block">
-                {work.date || `Month ${work.month || 10}, 2026`}
+                {(() => {
+                  if (!work.date) return `Bulan ${work.month || 10}, 2026`;
+                  try {
+                    const parts = work.date.split('-');
+                    if (parts.length === 3) {
+                      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                    }
+                  } catch {
+                    // fallback
+                  }
+                  return work.date;
+                })()}
               </span>
             </div>
           </div>
