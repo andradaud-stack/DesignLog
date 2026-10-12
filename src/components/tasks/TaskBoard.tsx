@@ -107,8 +107,14 @@ export const TaskBoard: React.FC = () => {
   const filteredTasks = tasks.filter((task) => {
     // Hotel filter (combine activeScope from sidebar if specified or local filter)
     const effectiveHotel = filterHotel !== 'all' ? filterHotel : activeScope;
-    if (effectiveHotel !== 'all' && task.hotelId !== effectiveHotel) {
-      return false;
+    if (effectiveHotel !== 'all') {
+      if (effectiveHotel === 'hotel_both') {
+        if (task.hotelId !== 'hotel_both') return false;
+      } else {
+        if (task.hotelId !== effectiveHotel && task.hotelId !== 'hotel_both') {
+          return false;
+        }
+      }
     }
     // Department filter
     if (filterDept !== 'all' && task.department !== filterDept) {
@@ -567,6 +573,7 @@ export const TaskBoard: React.FC = () => {
             <option value="all">Semua Hotel</option>
             <option value="hotel_semarang">🏨 Horison Semarang</option>
             <option value="hotel_jepara">🌊 Horison Jepara</option>
+            <option value="hotel_both">✨ Dual Unit (2 Hotel)</option>
           </select>
 
           {(filterDept !== 'all' || filterPriority !== 'all' || filterHotel !== 'all' || searchQuery || dayFilter !== 'all') && (
@@ -696,7 +703,11 @@ export const TaskBoard: React.FC = () => {
                               {task.mediaType === 'video' ? '🎬' : '🖼️'} {task.targetOutput}
                             </span>
                             <span className="text-slate-400 text-[10px]">
-                              {task.hotelId === 'hotel_semarang' ? 'Semarang' : 'Jepara'}
+                              {task.hotelId === 'hotel_both'
+                                ? '✨ Dual (2 Hotel)'
+                                : task.hotelId === 'hotel_semarang'
+                                ? 'Semarang'
+                                : 'Jepara'}
                             </span>
                           </div>
 
@@ -875,7 +886,7 @@ export const TaskBoard: React.FC = () => {
                             {task.title}
                           </span>
                           <span className="text-[11px] font-mono text-slate-400">
-                            {task.mediaType === 'video' ? '🎬' : '🖼️'} {task.targetOutput} • {task.hotelId === 'hotel_semarang' ? 'Semarang' : 'Jepara'}
+                            {task.mediaType === 'video' ? '🎬' : '🖼️'} {task.targetOutput} • {task.hotelId === 'hotel_both' ? '✨ Dual (2 Hotel)' : task.hotelId === 'hotel_semarang' ? 'Semarang' : 'Jepara'}
                           </span>
                         </td>
 

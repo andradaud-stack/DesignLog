@@ -1,7 +1,7 @@
 export interface Hotel {
   id: string;
   name: string;
-  city: 'Semarang' | 'Jepara';
+  city: 'Semarang' | 'Jepara' | 'Semarang & Jepara';
   type: string;
   tagline: string;
   address: string;

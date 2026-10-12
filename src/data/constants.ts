@@ -29,6 +29,19 @@ export const HOTELS: Hotel[] = [
     imageUri: '/horison-jepara.jpg',
     description: 'Resor tepi pantai eksotis di pesisir Pantai Teluk Awur, Tahunan, Jepara dengan fasilitas paviliun santai dan pemandangan langsung ke Laut Jawa.',
   },
+  {
+    id: 'hotel_both',
+    name: 'Kedua Hotel (Dual Unit - Semarang & Jepara)',
+    city: 'Semarang & Jepara',
+    type: 'Shared Cluster Collateral (2 Unit)',
+    tagline: 'Horison Semarang & Jepara',
+    address: 'Central Java Cluster (Semarang & Jepara)',
+    accentColor: '#6366f1',
+    secondaryColor: '#818cf8',
+    deliverablesCount: 0,
+    imageUri: '/horison-semarang.jpg',
+    description: 'Karya desain grafis bersama yang digunakan serentak untuk kedua unit properti (Horison Inn Antawirya Semarang dan Horison Resort Antawirya Jepara).',
+  },
 ];
 
 export const PERIODS: Period[] = [

@@ -127,7 +127,11 @@ export const TaskDetailModal: React.FC = () => {
                 {prio.label}
               </span>
               <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 dark:bg-navy-800 text-slate-600 dark:text-slate-300">
-                {task.hotelId === 'hotel_semarang' ? '🏨 Horison Semarang' : '🌊 Horison Jepara'}
+                {task.hotelId === 'hotel_both'
+                  ? '✨ Dual Unit (Semarang & Jepara)'
+                  : task.hotelId === 'hotel_semarang'
+                  ? '🏨 Horison Semarang'
+                  : '🌊 Horison Jepara'}
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-display font-extrabold text-navy-950 dark:text-white leading-snug">

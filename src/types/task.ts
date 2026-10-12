@@ -25,7 +25,7 @@ export interface RevisionItem {
 export interface DesignTask {
   id: string;
   title: string;
-  hotelId: string;         // 'hotel_semarang' | 'hotel_jepara'
+  hotelId: string;         // 'hotel_semarang' | 'hotel_jepara' | 'hotel_both'
   department: Department;
   requesterName: string;   // e.g. "Chef Dimas (Head Chef Resto)"
   requesterContact?: string; // e.g. "WA: 0812-3456-7890"

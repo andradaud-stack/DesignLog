@@ -47,8 +47,9 @@ export const Sidebar: React.FC = () => {
 
   const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
 
-  const semarangWorksCount = works.filter((w) => w.hotelId === 'hotel_semarang').length;
-  const jeparaWorksCount = works.filter((w) => w.hotelId === 'hotel_jepara').length;
+  const semarangWorksCount = works.filter((w) => w.hotelId === 'hotel_semarang' || w.hotelId === 'hotel_both').length;
+  const jeparaWorksCount = works.filter((w) => w.hotelId === 'hotel_jepara' || w.hotelId === 'hotel_both').length;
+  const bothWorksCount = works.filter((w) => w.hotelId === 'hotel_both').length;
 
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -82,6 +83,14 @@ export const Sidebar: React.FC = () => {
         sub: 'Resort Antawirya (Teluk Awur)',
         color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/30',
         dot: 'bg-cyan-500',
+      };
+    }
+    if (activeScope === 'hotel_both') {
+      return {
+        title: 'Dual Unit (2 Hotel)',
+        sub: 'Shared Semarang & Jepara',
+        color: 'text-purple-500 bg-purple-500/10 border-purple-500/30',
+        dot: 'bg-purple-500',
       };
     }
     return {
@@ -206,6 +215,25 @@ export const Sidebar: React.FC = () => {
                   <div className="text-[10px] text-slate-400">Resort Antawirya Teluk Awur ({jeparaWorksCount} works)</div>
                 </div>
                 {activeScope === 'hotel_jepara' && <Check className="w-4 h-4 text-cyan-500" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveScope('hotel_both');
+                  setScopeDropdownOpen(false);
+                }}
+                className={`w-full text-left p-2 rounded-lg text-xs flex items-center justify-between transition-colors ${
+                  activeScope === 'hotel_both'
+                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-navy-800'
+                }`}
+              >
+                <div>
+                  <div className="font-semibold">Dual Unit (2 Hotel)</div>
+                  <div className="text-[10px] text-slate-400">Desain Bersama Cluster ({bothWorksCount} works)</div>
+                </div>
+                {activeScope === 'hotel_both' && <Check className="w-4 h-4 text-purple-500" />}
               </button>
             </div>
           )}

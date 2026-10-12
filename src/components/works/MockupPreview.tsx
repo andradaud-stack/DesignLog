@@ -31,10 +31,17 @@ export const MockupPreview: React.FC<MockupPreviewProps> = ({
   dateStr,
 }) => {
   const [mockupType, setMockupType] = useState<'instagram' | 'standee' | 'acrylic'>('instagram');
+  const isBoth = hotelId === 'hotel_both';
   const isSemarang = hotelId === 'hotel_semarang';
 
-  const igHandle = isSemarang ? 'horisoninn_antawirya' : 'horisonresort_jepara';
-  const hotelLocation = isSemarang
+  const igHandle = isBoth
+    ? 'horisonhotels_group'
+    : isSemarang
+    ? 'horisoninn_antawirya'
+    : 'horisonresort_jepara';
+  const hotelLocation = isBoth
+    ? 'Horison Hotels • Semarang & Jepara Dual Property'
+    : isSemarang
     ? 'Hotel Horison Inn Antawirya Semarang • Official'
     : 'Horison Resort Jepara Beachfront • Official';
 

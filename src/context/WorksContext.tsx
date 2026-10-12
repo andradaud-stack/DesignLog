@@ -65,7 +65,7 @@ interface WorksContextType {
   setEditingTask: (task: DesignTask | null) => void;
 
   // Filters & View state
-  activeScope: string; // 'all' | 'hotel_semarang' | 'hotel_jepara'
+  activeScope: string; // 'all' | 'hotel_semarang' | 'hotel_jepara' | 'hotel_both'
   setActiveScope: (scope: string) => void;
   activePeriod: string; // 'all' | 'period_2026_1' | 'period_2026_2'
   setActivePeriod: (period: string) => void;
@@ -1025,8 +1025,12 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const filteredWorks = works
     .filter((w) => {
       // Hotel scope
-      if (activeScope !== 'all' && w.hotelId !== activeScope) {
-        return false;
+      if (activeScope !== 'all') {
+        if (activeScope === 'hotel_both') {
+          if (w.hotelId !== 'hotel_both') return false;
+        } else if (w.hotelId !== activeScope && w.hotelId !== 'hotel_both') {
+          return false;
+        }
       }
       // Period
       if (activePeriod !== 'all' && w.periodId !== activePeriod) {

@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Video,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
 import type { Work, WorkStatus, SortOption } from '../../types/work';
@@ -81,8 +82,9 @@ export const MyWorks: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const semarangCount = works.filter((w) => w.hotelId === 'hotel_semarang').length;
-  const jeparaCount = works.filter((w) => w.hotelId === 'hotel_jepara').length;
+  const semarangCount = works.filter((w) => w.hotelId === 'hotel_semarang' || w.hotelId === 'hotel_both').length;
+  const jeparaCount = works.filter((w) => w.hotelId === 'hotel_jepara' || w.hotelId === 'hotel_both').length;
+  const bothCount = works.filter((w) => w.hotelId === 'hotel_both').length;
 
   // Reset page when filters change
   useEffect(() => {
@@ -299,6 +301,18 @@ export const MyWorks: React.FC = () => {
             >
               <Palmtree className="w-3.5 h-3.5" />
               <span>Jepara ({jeparaCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveScope('hotel_both')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeScope === 'hotel_both'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Dual Unit / 2 Hotel ({bothCount})</span>
             </button>
           </div>
 
@@ -545,13 +559,24 @@ export const MyWorks: React.FC = () => {
                     {/* Hotel Badge & New Badge */}
                     <div className="absolute top-3 left-3 flex items-center gap-1.5">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase backdrop-blur-md shadow-sm border ${
-                          isSemarang
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase backdrop-blur-md shadow-sm border flex items-center gap-1 ${
+                          work.hotelId === 'hotel_both'
+                            ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white border-purple-400/40'
+                            : isSemarang
                             ? 'bg-amber-500/90 text-white border-amber-400/40'
                             : 'bg-cyan-600/90 text-white border-cyan-400/40'
                         }`}
                       >
-                        {isSemarang ? 'Semarang' : 'Jepara'}
+                        {work.hotelId === 'hotel_both' ? (
+                          <>
+                            <Layers className="w-3 h-3" />
+                            <span>Dual (2 Hotel)</span>
+                          </>
+                        ) : isSemarang ? (
+                          'Semarang'
+                        ) : (
+                          'Jepara'
+                        )}
                       </span>
                       {(work.isUserCreated || work.id.startsWith('work-conv-') || !/^work-(video-)?(0[1-9]|[1-4][0-9])$/.test(work.id)) && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm flex items-center gap-1">
@@ -674,13 +699,24 @@ export const MyWorks: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                              isSemarang
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 ${
+                              work.hotelId === 'hotel_both'
+                                ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30'
+                                : isSemarang
                                 ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
                                 : 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30'
                             }`}
                           >
-                            {isSemarang ? 'Semarang Inn' : 'Jepara Resort'}
+                            {work.hotelId === 'hotel_both' ? (
+                              <>
+                                <Layers className="w-3 h-3" />
+                                <span>Dual Property (2 Hotel)</span>
+                              </>
+                            ) : isSemarang ? (
+                              'Semarang Inn'
+                            ) : (
+                              'Jepara Resort'
+                            )}
                           </span>
                         </td>
                         <td className="py-3 px-4">

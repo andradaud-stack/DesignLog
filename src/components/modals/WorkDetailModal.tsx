@@ -15,6 +15,7 @@ import {
   Palmtree,
   Copy,
   Video,
+  Layers,
 } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
 import { MockupPreview } from '../works/MockupPreview';
@@ -90,7 +91,11 @@ export const WorkDetailModal: React.FC = () => {
 
   const handleShareFolio = () => {
     const shareText = `🎨 [DesignLog V2 Deliverable]\n📌 Title: ${work.title}\n🏨 Property: ${
-      isSemarang ? 'Hotel Horison Inn Antawirya Semarang' : 'Horison Resort Jepara'
+      work.hotelId === 'hotel_both'
+        ? 'Kedua Hotel (Dual Unit - Semarang & Jepara)'
+        : isSemarang
+        ? 'Hotel Horison Inn Antawirya Semarang'
+        : 'Horison Resort Jepara'
     }\n📐 Specs: ${work.dimensions} (${work.colorSpace})\n✅ Status: ${
       work.status === 'final' ? 'Final Approved Sign-Off' : `Revision #${work.revisionCount}`
     }\n🔗 Asset: ${work.imageUri}`;
@@ -112,13 +117,27 @@ export const WorkDetailModal: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <span
               className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                isSemarang
+                work.hotelId === 'hotel_both'
+                  ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30'
+                  : isSemarang
                   ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
                   : 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30'
               }`}
             >
-              {isSemarang ? <Building className="w-3 h-3" /> : <Palmtree className="w-3 h-3" />}
-              <span>{isSemarang ? 'Horison Semarang • Inn' : 'Horison Jepara • Resort'}</span>
+              {work.hotelId === 'hotel_both' ? (
+                <Layers className="w-3 h-3" />
+              ) : isSemarang ? (
+                <Building className="w-3 h-3" />
+              ) : (
+                <Palmtree className="w-3 h-3" />
+              )}
+              <span>
+                {work.hotelId === 'hotel_both'
+                  ? 'Dual Property • Semarang & Jepara (2 Unit)'
+                  : isSemarang
+                  ? 'Horison Semarang • Inn'
+                  : 'Horison Jepara • Resort'}
+              </span>
             </span>
             <span className="text-xs font-mono text-slate-400">
               Folio #{work.id}

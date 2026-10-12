@@ -234,6 +234,7 @@ export const AddTaskModal: React.FC = () => {
               >
                 <option value="hotel_semarang">🏨 Horison Inn Semarang</option>
                 <option value="hotel_jepara">🌊 Horison Resort Jepara</option>
+                <option value="hotel_both">✨ Kedua Hotel (Dual Unit - Semarang &amp; Jepara)</option>
               </select>
             </div>
 

@@ -578,7 +578,7 @@ export const AddWorkModal: React.FC = () => {
               >
                 {hotels.map((h) => (
                   <option key={h.id} value={h.id}>
-                    {h.name} ({h.city})
+                    {h.id === 'hotel_both' ? '✨ Kedua Hotel (Dual Unit - Semarang & Jepara)' : `${h.name} (${h.city})`}
                   </option>
                 ))}
               </select>
