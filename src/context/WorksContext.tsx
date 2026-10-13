@@ -176,6 +176,14 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return SEED_WORKS;
   });
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(works));
+    } catch (e) {
+      console.warn('Failed to save works to localStorage:', e);
+    }
+  }, [works]);
+
   const [tasks, setTasks] = useState<DesignTask[]>(() => {
     try {
       // Clear legacy dummy tasks from previous test sessions
@@ -229,14 +237,37 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const cloudWorks = await fetchWorksFromApi();
         if (cloudWorks && cloudWorks.length > 0) {
           setWorks(cloudWorks);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudWorks));
+          } catch {}
+        } else if (cloudWorks && cloudWorks.length === 0) {
+          // TiDB connected but table empty: auto-seed TiDB from current works
+          const stored = localStorage.getItem(STORAGE_KEY);
+          let currentWorks = works;
+          if (stored) {
+            try {
+              currentWorks = JSON.parse(stored);
+            } catch {}
+          }
+          if (currentWorks && currentWorks.length > 0) {
+            await bulkSyncWorksToApi(currentWorks);
+          }
         }
+
         const cloudTasks = await fetchTasksFromApi();
         if (cloudTasks && cloudTasks.length > 0) {
           setTasks(cloudTasks);
+          try {
+            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(cloudTasks));
+          } catch {}
         }
+
         const cloudProfile = await fetchProfileFromApi();
         if (cloudProfile && cloudProfile.name) {
           setUserProfile((prev) => ({ ...prev, ...cloudProfile }));
+          try {
+            localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(cloudProfile));
+          } catch {}
         }
       } catch (e) {
         console.warn('Initial TiDB sync bypassed:', e);

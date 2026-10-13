@@ -3,7 +3,7 @@
  * into compact Data URLs for smooth localStorage persistence.
  */
 
-export function compressImageFile(file: File, maxDimension = 1400, quality = 0.82): Promise<string> {
+export function compressImageFile(file: File, maxDimension = 1200, quality = 0.78): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {
       reject(new Error('Selected file is not an image'));
