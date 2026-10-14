@@ -17,10 +17,10 @@ import {
   ArrowRight,
   Shield,
   Lock,
-  Unlock,
   Key,
   Database,
   RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
 import type { UserProfile } from '../../types/user';
@@ -38,16 +38,13 @@ export const SettingsView: React.FC = () => {
     resetUserProfile,
     setActiveScope,
     setActiveTab,
-    isSecurityEnabled,
-    isEditorUnlocked,
-    hasPinSet,
     setIsAuthModalOpen,
-    lockEditor,
-    setSecurityPin,
-    removeSecurityPin,
     requireEditorAuth,
     dbStatus,
     checkDbConnection,
+    isAdminLoggedIn,
+    adminUser,
+    logoutAdmin,
   } = useWorks();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,14 +57,6 @@ export const SettingsView: React.FC = () => {
     await checkDbConnection();
     setIsCheckingDb(false);
   };
-
-  // Security PIN Modal State
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [isRemovingPinMode, setIsRemovingPinMode] = useState(false);
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [currentPin, setCurrentPin] = useState('');
-  const [pinError, setPinError] = useState('');
 
   // Profile Edit Modal State
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -123,57 +112,6 @@ export const SettingsView: React.FC = () => {
         resetToDefault();
       }
     });
-  };
-
-  const openSetPinModal = () => {
-    setNewPin('');
-    setConfirmPin('');
-    setCurrentPin('');
-    setPinError('');
-    setIsRemovingPinMode(false);
-    setIsPinModalOpen(true);
-  };
-
-  const openRemovePinModal = () => {
-    setCurrentPin('');
-    setPinError('');
-    setIsRemovingPinMode(true);
-    setIsPinModalOpen(true);
-  };
-
-  const handlePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError('');
-
-    if (isRemovingPinMode) {
-      if (!currentPin) {
-        setPinError('Masukkan PIN saat ini');
-        return;
-      }
-      const success = await removeSecurityPin(currentPin);
-      if (success) {
-        setIsPinModalOpen(false);
-      } else {
-        setPinError('PIN saat ini tidak tepat');
-      }
-      return;
-    }
-
-    if (newPin.length < 4) {
-      setPinError('PIN minimal 4 karakter');
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinError('Konfirmasi PIN tidak cocok');
-      return;
-    }
-
-    const success = await setSecurityPin(newPin);
-    if (success) {
-      setIsPinModalOpen(false);
-    } else {
-      setPinError('Gagal menyimpan PIN');
-    }
   };
 
   const semarangWorksCount = works.filter((w) => w.hotelId === 'hotel_semarang').length;
@@ -580,28 +518,24 @@ export const SettingsView: React.FC = () => {
             <div className="flex items-center gap-2 mb-1">
               <Shield className="w-5 h-5 text-emerald-500" />
               <h2 className="text-xl font-display font-extrabold text-navy-950 dark:text-white">
-                Proteksi Keamanan &amp; Kunci Editor (Anti-Tamper)
+                Proteksi Keamanan Admin &amp; Anti-Tamper (TiDB Cloud)
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Melindungi data portofolio dari perubahan atau pembajakan saat link Vercel dibuka pengunjung publik.
+              Melindungi database TiDB dan seluruh karya dari modifikasi atau penghapusan oleh pihak tidak berwenang saat link Vercel diakses publik.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {isSecurityEnabled ? (
-              <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border ${
-                isEditorUnlocked
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-              }`}>
-                {isEditorUnlocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                <span>{isEditorUnlocked ? 'Editor Terbuka (Unrestricted)' : 'Terkunci (Read-Only Mode)'}</span>
+            {isAdminLoggedIn ? (
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Admin Aktif ({adminUser?.username || 'Andra'})</span>
               </span>
             ) : (
-              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-navy-950 text-slate-500 border border-slate-200 dark:border-navy-800 flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5" />
-                <span>PIN Belum Diaktifkan</span>
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Mode Pengunjung (Read-Only)</span>
               </span>
             )}
           </div>
@@ -612,83 +546,64 @@ export const SettingsView: React.FC = () => {
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 space-y-1.5">
             <span className="font-bold text-navy-950 dark:text-white flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5 text-electric-500" />
-              PIN Hash SHA-256
+              Scrypt Password Hash
             </span>
             <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
-              PIN dienkripsi dengan standar cryptographic hash Web Crypto SHA-256. Password asli tidak pernah tersimpan terbuka.
+              Kredensial admin dienkripsi dengan standar cryptographic Scrypt &amp; HMAC SHA-256 token di TiDB Cloud. Password asli tidak pernah tersimpan terbuka.
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 space-y-1.5">
             <span className="font-bold text-navy-950 dark:text-white flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-emerald-500" />
-              Sanitasi XSS &amp; URL
+              Server-Side API Guard
             </span>
             <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
-              Semua link referensi &amp; gambar disaring otomatis untuk memblokir script berbahaya (<code>javascript:</code>, payload XSS).
+              Semua operasi penambahan, pengeditan, dan penghapusan di <code>/api/works</code> dan <code>/api/tasks</code> wajib diverifikasi dengan token session Admin.
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 space-y-1.5">
             <span className="font-bold text-navy-950 dark:text-white flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-cyan-500" />
-              HTTP Security Headers
+              Public Read-Only Mode
             </span>
             <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
-              Vercel dikonfigurasi dengan Content Security Policy (CSP), anti-clickjacking (DENY), dan nosniff MIME protection.
+              Dosen, pembimbing, dan audiens luar dapat melihat seluruh isi portofolio tanpa login, namun tombol modifikasi otomatis terkunci.
             </p>
           </div>
         </div>
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          {hasPinSet ? (
+          {isAdminLoggedIn ? (
             <>
-              {isEditorUnlocked ? (
-                <button
-                  type="button"
-                  onClick={lockEditor}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-navy-950 hover:bg-slate-200 dark:hover:bg-navy-800 text-navy-950 dark:text-white border border-slate-200 dark:border-navy-700 text-xs font-bold transition-all flex items-center gap-2 active:scale-95"
-                >
-                  <Lock className="w-4 h-4 text-amber-500" />
-                  <span>Kunci Mode Editor Sekarang (Jadikan Read-Only)</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsAuthModalOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-electric-500 hover:bg-electric-600 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-electric-500/25 active:scale-95"
-                >
-                  <Unlock className="w-4 h-4" />
-                  <span>Buka Kunci Editor dengan PIN</span>
-                </button>
-              )}
-
               <button
                 type="button"
-                onClick={openSetPinModal}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-navy-950 hover:bg-slate-200 dark:hover:bg-navy-800 text-navy-950 dark:text-white border border-slate-200 dark:border-navy-700 text-xs font-bold transition-all flex items-center gap-2 active:scale-95"
+                onClick={logoutAdmin}
+                className="px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold transition-all flex items-center gap-2 active:scale-95"
               >
-                <Key className="w-4 h-4 text-electric-500" />
-                <span>Ganti PIN Keamanan</span>
+                <Lock className="w-4 h-4 text-rose-500" />
+                <span>Logout Admin (Kunci Mode Read-Only)</span>
               </button>
 
               <button
                 type="button"
-                onClick={openRemovePinModal}
-                className="px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold transition-all flex items-center gap-2 active:scale-95"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-navy-950 hover:bg-slate-200 dark:hover:bg-navy-800 text-navy-950 dark:text-white border border-slate-200 dark:border-navy-700 text-xs font-bold transition-all flex items-center gap-2 active:scale-95"
               >
-                <span>Nonaktifkan PIN</span>
+                <Key className="w-4 h-4 text-electric-500" />
+                <span>Ganti Password Admin</span>
               </button>
             </>
           ) : (
             <button
               type="button"
-              onClick={openSetPinModal}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-500/25 flex items-center gap-2 active:scale-95 transition-all"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-electric-600 to-indigo-600 hover:from-electric-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-electric-500/25 flex items-center gap-2 active:scale-95 transition-all"
             >
-              <Shield className="w-4 h-4" />
-              <span>Aktifkan Kunci PIN Editor (Rekomendasi Sebelum Deploy ke Vercel)</span>
+              <ShieldCheck className="w-4 h-4" />
+              <span>Login sebagai Admin (Buka Hak Akses Editor)</span>
             </button>
           )}
         </div>
@@ -903,112 +818,6 @@ export const SettingsView: React.FC = () => {
                     Simpan Perubahan
                   </button>
                 </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 6. MODAL SET / CHANGE / REMOVE PIN */}
-      {isPinModalOpen && (
-        <div className="fixed inset-0 z-50 bg-navy-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white dark:bg-navy-900 border border-slate-200 dark:border-navy-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-navy-800">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-emerald-500" />
-                <h3 className="font-display font-extrabold text-lg text-navy-950 dark:text-white">
-                  {isRemovingPinMode ? 'Nonaktifkan PIN Editor' : hasPinSet ? 'Ganti PIN Editor' : 'Atur PIN Keamanan Editor'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPinModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-navy-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handlePinSubmit} className="mt-5 space-y-4">
-              {pinError && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
-                  {pinError}
-                </div>
-              )}
-
-              {isRemovingPinMode ? (
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                    Masukkan PIN Saat Ini
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    autoFocus
-                    value={currentPin}
-                    onChange={(e) => setCurrentPin(e.target.value)}
-                    placeholder="Masukkan PIN lama..."
-                    className="w-full text-sm p-3 rounded-xl bg-slate-50 dark:bg-navy-950 border border-slate-200 dark:border-navy-800 text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Setelah dinonaktifkan, siapa pun yang membuka link Vercel dapat mengedit data.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                      {hasPinSet ? 'PIN Baru (Minimal 4 Karakter)' : 'Buat PIN Editor Baru'}
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      autoFocus
-                      value={newPin}
-                      onChange={(e) => setNewPin(e.target.value)}
-                      placeholder="Contoh: 1234 atau kata sandi rahasia..."
-                      className="w-full text-sm p-3 rounded-xl bg-slate-50 dark:bg-navy-950 border border-slate-200 dark:border-navy-800 text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                      Ulangi / Konfirmasi PIN
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      value={confirmPin}
-                      onChange={(e) => setConfirmPin(e.target.value)}
-                      placeholder="Ketik ulang PIN..."
-                      className="w-full text-sm p-3 rounded-xl bg-slate-50 dark:bg-navy-950 border border-slate-200 dark:border-navy-800 text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    💡 Catat atau ingat PIN ini! PIN ini digunakan untuk membuka akses edit saat kamu membuka portofolio dari HP atau browser lain.
-                  </p>
-                </>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-navy-800">
-                <button
-                  type="button"
-                  onClick={() => setIsPinModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-navy-800 hover:bg-slate-200 dark:hover:bg-navy-700 text-navy-950 dark:text-white text-xs font-semibold"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className={`px-5 py-2 rounded-xl text-white text-xs font-bold shadow-md active:scale-95 ${
-                    isRemovingPinMode
-                      ? 'bg-rose-600 hover:bg-rose-700'
-                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/25'
-                  }`}
-                >
-                  {isRemovingPinMode ? 'Hapus PIN' : 'Simpan & Aktifkan PIN'}
-                </button>
               </div>
             </form>
           </div>

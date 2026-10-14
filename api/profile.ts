@@ -1,4 +1,5 @@
 import { connect, type Connection } from '@tidbcloud/serverless';
+import { verifyAdminRequest } from './authHelper.js';
 
 let cachedConnection: Connection<any> | null = null;
 
@@ -69,6 +70,19 @@ export default async function handler(req: any, res: any) {
     }
 
     if (method === 'POST') {
+      const isAuth = verifyAdminRequest(req);
+      if (!isAuth) {
+        try {
+          const secRows: any = await db.execute('SELECT password_hash FROM security_settings WHERE id = "default" LIMIT 1');
+          if (secRows && secRows.length > 0 && secRows[0].password_hash) {
+            return res.status(401).json({
+              error: 'UNAUTHORIZED',
+              message: 'Akses ditolak: Harap login sebagai Admin untuk mengubah profil.',
+            });
+          }
+        } catch {}
+      }
+
       const p = req.body;
       if (!p || !p.name) {
         return res.status(400).json({ error: 'Invalid profile data' });

@@ -14,7 +14,7 @@ import {
   Building,
   CheckSquare,
   Lock,
-  Unlock,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
@@ -38,11 +38,10 @@ export const Sidebar: React.FC = () => {
     userProfile,
     isDark,
     toggleDarkMode,
-    isSecurityEnabled,
-    isEditorUnlocked,
-    hasPinSet,
-    lockEditor,
     setIsAuthModalOpen,
+    isAdminLoggedIn,
+    adminUser,
+    logoutAdmin,
   } = useWorks();
 
   const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
@@ -327,33 +326,37 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        {/* Security / Editor Lock Status Badge */}
-        {hasPinSet && isSecurityEnabled ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (isEditorUnlocked) {
-                lockEditor();
-              } else {
-                setIsAuthModalOpen(true);
-              }
-            }}
-            className={`w-full p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all border shadow-xs ${
-              isEditorUnlocked
-                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
-                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-            }`}
-            title={isEditorUnlocked ? 'Klik untuk Mengunci Editor (Read-Only Mode)' : 'Klik untuk Membuka Kunci Editor'}
-          >
-            <div className="flex items-center gap-2">
-              {isEditorUnlocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-              <span>{isEditorUnlocked ? 'Editor Unlocked' : 'Read-Only Mode'}</span>
-            </div>
-            <span className="text-[10px] uppercase font-mono tracking-wider opacity-80">
-              {isEditorUnlocked ? 'Kunci' : 'Buka'}
+        {/* Security / Admin Auth Status Badge */}
+        <button
+          type="button"
+          onClick={() => {
+            if (isAdminLoggedIn) {
+              logoutAdmin();
+            } else {
+              setIsAuthModalOpen(true);
+            }
+          }}
+          className={`w-full p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all border shadow-xs ${
+            isAdminLoggedIn
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-rose-500/15 hover:text-rose-600 hover:border-rose-500/30'
+              : 'bg-slate-100 hover:bg-electric-500/10 dark:bg-navy-950 dark:hover:bg-navy-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-navy-800 hover:border-electric-500/30'
+          }`}
+          title={isAdminLoggedIn ? 'Klik untuk Logout Admin' : 'Klik untuk Login sebagai Admin'}
+        >
+          <div className="flex items-center gap-2">
+            {isAdminLoggedIn ? (
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            ) : (
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+            )}
+            <span className="truncate">
+              {isAdminLoggedIn ? `Admin (${adminUser?.username || 'Andra'})` : 'Mode Pengunjung'}
             </span>
-          </button>
-        ) : null}
+          </div>
+          <span className="text-[10px] uppercase font-mono tracking-wider opacity-80">
+            {isAdminLoggedIn ? 'Logout' : 'Login'}
+          </span>
+        </button>
 
         <div className="flex items-center justify-between px-1 text-[11px] text-slate-400">
           <span className="inline-flex items-center gap-1.5">

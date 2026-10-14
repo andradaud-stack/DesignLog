@@ -22,6 +22,11 @@ import {
   clearAllTasksFromApi,
   fetchProfileFromApi,
   saveProfileToApi,
+  checkAuthStatus,
+  loginAdminApi,
+  setupAdminApi,
+  logoutAdminApi,
+  changePasswordApi,
 } from '../utils/apiSync';
 
 interface ToastState {
@@ -135,6 +140,15 @@ interface WorksContextType {
   setSecurityPin: (newPin: string) => Promise<boolean>;
   removeSecurityPin: (currentPin: string) => Promise<boolean>;
   requireEditorAuth: (callback?: () => void) => boolean;
+
+  // Admin Account Authentication (TiDB Serverless Secured)
+  isAdminLoggedIn: boolean;
+  isSetupRequired: boolean;
+  adminUser: { username: string; email: string } | null;
+  loginAdmin: (identifier: string, password: string) => Promise<{ success: boolean; message?: string; needSetup?: boolean }>;
+  setupAdmin: (username: string, email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  logoutAdmin: () => Promise<void>;
+  changeAdminPassword: (currentPassword: string, newPassword: string, username?: string, email?: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 const WorksContext = createContext<WorksContextType | undefined>(undefined);
@@ -218,6 +232,11 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return DEFAULT_USER_PROFILE;
   });
 
+  // Admin Account Authentication State (TiDB Cloud Secured)
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isSetupRequired, setIsSetupRequired] = useState(false);
+  const [adminUser, setAdminUser] = useState<{ username: string; email: string } | null>(null);
+
   // TiDB Cloud Database Connection Status & Initial Sync
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; message: string }>({
     connected: false,
@@ -231,6 +250,17 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     checkDbConnection();
+
+    checkAuthStatus().then((status) => {
+      setIsAdminLoggedIn(status.authenticated);
+      setIsSetupRequired(!status.isSetup);
+      if (status.authenticated) {
+        setIsEditorUnlocked(true);
+      }
+      if (status.user) {
+        setAdminUser(status.user);
+      }
+    });
 
     (async () => {
       try {
@@ -497,8 +527,75 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const loginAdmin = async (identifier: string, password: string) => {
+    const res = await loginAdminApi(identifier, password);
+    if (res.success) {
+      setIsAdminLoggedIn(true);
+      setIsEditorUnlocked(true);
+      if (res.user) setAdminUser(res.user);
+      setIsAuthModalOpen(false);
+      showToast(`Login berhasil! Selamat datang kembali, ${res.user?.username || 'Admin'} 🛡️`, 'success');
+      if (pendingAuthAction) {
+        pendingAuthAction();
+        setPendingAuthAction(null);
+      }
+    } else {
+      showToast(res.message || 'Login gagal', 'error');
+    }
+    return res;
+  };
+
+  const setupAdmin = async (username: string, email: string, password: string) => {
+    const res = await setupAdminApi(username, email, password);
+    if (res.success) {
+      setIsAdminLoggedIn(true);
+      setIsEditorUnlocked(true);
+      setIsSetupRequired(false);
+      if (res.user) setAdminUser(res.user);
+      setIsAuthModalOpen(false);
+      showToast('Akun Admin berhasil dibuat dan langsung aktif! 🛡️', 'success');
+      if (pendingAuthAction) {
+        pendingAuthAction();
+        setPendingAuthAction(null);
+      }
+    } else {
+      showToast(res.message || 'Gagal membuat akun Admin', 'error');
+    }
+    return res;
+  };
+
+  const logoutAdmin = async () => {
+    await logoutAdminApi();
+    setIsAdminLoggedIn(false);
+    setIsEditorUnlocked(false);
+    setAdminUser(null);
+    showToast('Berhasil logout. Portofolio beralih ke Mode Pengunjung (Read-Only) 🔒', 'info');
+  };
+
+  const changeAdminPassword = async (
+    currentPassword: string,
+    newPassword: string,
+    username?: string,
+    email?: string
+  ) => {
+    const res = await changePasswordApi(currentPassword, newPassword, username, email);
+    if (res.success) {
+      showToast(res.message || 'Password Admin berhasil diperbarui!', 'success');
+      if (username || email) {
+        setAdminUser((prev) => ({
+          username: username || prev?.username || 'admin',
+          email: email || prev?.email || 'andrasyahdand@gmail.com',
+        }));
+      }
+    } else {
+      showToast(res.message || 'Gagal mengubah password', 'error');
+    }
+    return res;
+  };
+
   const requireEditorAuth = (callback?: () => void): boolean => {
-    if (!isSecurityEnabled || isEditorUnlocked) {
+    // If admin is logged in, action is permitted immediately
+    if (isAdminLoggedIn || (!isSecurityEnabled && isEditorUnlocked)) {
       if (callback) callback();
       return true;
     }
@@ -1289,6 +1386,15 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSecurityPin,
         removeSecurityPin,
         requireEditorAuth,
+
+        // Admin Account Authentication (TiDB Serverless Cloud)
+        isAdminLoggedIn,
+        isSetupRequired,
+        adminUser,
+        loginAdmin,
+        setupAdmin,
+        logoutAdmin,
+        changeAdminPassword,
 
         // TiDB Cloud & Connection Status
         dbStatus,
