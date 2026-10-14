@@ -235,31 +235,73 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     (async () => {
       try {
         const cloudWorks = await fetchWorksFromApi();
-        if (cloudWorks && cloudWorks.length > 0) {
-          setWorks(cloudWorks);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudWorks));
-          } catch {}
-        } else if (cloudWorks && cloudWorks.length === 0) {
-          // TiDB connected but table empty: auto-seed TiDB from current works
+        if (cloudWorks !== null) {
           const stored = localStorage.getItem(STORAGE_KEY);
-          let currentWorks = works;
+          let localList: Work[] = [];
           if (stored) {
             try {
-              currentWorks = JSON.parse(stored);
+              localList = JSON.parse(stored);
             } catch {}
           }
-          if (currentWorks && currentWorks.length > 0) {
-            await bulkSyncWorksToApi(currentWorks);
+
+          // Merge: Keep all cloud works, plus any local-only works that aren't in cloud yet
+          const mergedWorks = [...cloudWorks];
+          const localOnlyWorks: Work[] = [];
+
+          for (const localW of localList) {
+            if (!mergedWorks.some((cw) => cw.id === localW.id)) {
+              mergedWorks.push(localW);
+              localOnlyWorks.push(localW);
+            }
+          }
+
+          setWorks(mergedWorks);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedWorks));
+          } catch {}
+
+          // Automatically sync local-only items up to TiDB cloud so they are never lost
+          if (localOnlyWorks.length > 0) {
+            for (const item of localOnlyWorks) {
+              await saveWorkToApi(item);
+            }
+          } else if (cloudWorks.length === 0 && mergedWorks.length > 0) {
+            await bulkSyncWorksToApi(mergedWorks);
           }
         }
 
         const cloudTasks = await fetchTasksFromApi();
-        if (cloudTasks && cloudTasks.length > 0) {
-          setTasks(cloudTasks);
+        if (cloudTasks !== null) {
+          const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
+          let localTasksList: DesignTask[] = [];
+          if (storedTasks) {
+            try {
+              localTasksList = JSON.parse(storedTasks);
+            } catch {}
+          }
+
+          const mergedTasks = [...cloudTasks];
+          const localOnlyTasks: DesignTask[] = [];
+
+          for (const localT of localTasksList) {
+            if (!mergedTasks.some((ct) => ct.id === localT.id)) {
+              mergedTasks.push(localT);
+              localOnlyTasks.push(localT);
+            }
+          }
+
+          setTasks(mergedTasks);
           try {
-            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(cloudTasks));
+            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(mergedTasks));
           } catch {}
+
+          if (localOnlyTasks.length > 0) {
+            for (const task of localOnlyTasks) {
+              await saveTaskToApi(task);
+            }
+          } else if (cloudTasks.length === 0 && mergedTasks.length > 0) {
+            await bulkSyncTasksToApi(mergedTasks);
+          }
         }
 
         const cloudProfile = await fetchProfileFromApi();

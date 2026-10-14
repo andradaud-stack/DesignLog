@@ -147,14 +147,12 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ success: true, id: task.id });
     }
 
-    // 3. PUT: Bulk Sync / Replace All Tasks
+    // 3. PUT: Bulk Upsert Tasks (Non-destructive)
     if (method === 'PUT') {
       const { tasks } = req.body || {};
       if (!Array.isArray(tasks)) {
         return res.status(400).json({ error: 'Body must contain an array of tasks' });
       }
-
-      await db.execute('DELETE FROM tasks');
 
       for (const task of tasks) {
         const revisionsJson = JSON.stringify(task.revisions || []);
@@ -164,7 +162,25 @@ export default async function handler(req: any, res: any) {
             media_type, target_output, target_dimensions, priority, status,
             deadline, description, reference_url, converted_work_id, completed_at,
             revisions, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            department = VALUES(department),
+            requester_name = VALUES(requester_name),
+            requester_contact = VALUES(requester_contact),
+            hotel_id = VALUES(hotel_id),
+            media_type = VALUES(media_type),
+            target_output = VALUES(target_output),
+            target_dimensions = VALUES(target_dimensions),
+            priority = VALUES(priority),
+            status = VALUES(status),
+            deadline = VALUES(deadline),
+            description = VALUES(description),
+            reference_url = VALUES(reference_url),
+            converted_work_id = VALUES(converted_work_id),
+            completed_at = VALUES(completed_at),
+            revisions = VALUES(revisions),
+            updated_at = VALUES(updated_at)`,
           [
             task.id,
             task.title,

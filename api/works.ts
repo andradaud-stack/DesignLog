@@ -144,15 +144,12 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ success: true, id: work.id });
     }
 
-    // 3. PUT: Bulk Sync / Replace All Works
+    // 3. PUT: Bulk Upsert Works (Non-destructive)
     if (method === 'PUT') {
       const { works } = req.body || {};
       if (!Array.isArray(works)) {
         return res.status(400).json({ error: 'Body must contain an array of works' });
       }
-
-      // Truncate and replace
-      await db.execute('DELETE FROM works');
 
       for (const work of works) {
         await db.execute(
@@ -161,7 +158,29 @@ export default async function handler(req: any, res: any) {
             date_certainty, event_date, event_month, event_year, revision_count,
             dimensions, color_space, aspect_ratio, media_type, video_uri, duration,
             image_uri, draft_image_uri, is_user_created, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            hotel_id = VALUES(hotel_id),
+            period_id = VALUES(period_id),
+            category_id = VALUES(category_id),
+            status = VALUES(status),
+            description = VALUES(description),
+            date_certainty = VALUES(date_certainty),
+            event_date = VALUES(event_date),
+            event_month = VALUES(event_month),
+            event_year = VALUES(event_year),
+            revision_count = VALUES(revision_count),
+            dimensions = VALUES(dimensions),
+            color_space = VALUES(color_space),
+            aspect_ratio = VALUES(aspect_ratio),
+            media_type = VALUES(media_type),
+            video_uri = VALUES(video_uri),
+            duration = VALUES(duration),
+            image_uri = VALUES(image_uri),
+            draft_image_uri = VALUES(draft_image_uri),
+            is_user_created = VALUES(is_user_created),
+            updated_at = VALUES(updated_at)`,
           [
             work.id,
             work.title,
