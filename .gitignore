@@ -25,3 +25,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Security Scan Reports
+dast-report.json
+dast-report.md

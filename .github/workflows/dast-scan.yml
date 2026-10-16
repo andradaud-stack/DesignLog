@@ -1,0 +1,114 @@
+name: DAST Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dast-scan:
+    name: 🛡️ DAST Security Scan (Passive)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Application Dependencies
+        run: npm ci
+
+      - name: Build Application
+        run: npm run build
+
+      - name: Start Application in Background
+        run: |
+          npx vite preview --port 4173 --host 127.0.0.1 &
+          echo "Menunggu aplikasi DesignLogV2 aktif di http://127.0.0.1:4173..."
+          timeout 30 bash -c 'until curl -s http://127.0.0.1:4173 > /dev/null; do sleep 1; done'
+          echo "Aplikasi DesignLogV2 berhasil berjalan di background!"
+
+      - name: Checkout DAST-AI Scanner
+        uses: actions/checkout@v4
+        with:
+          repository: andradaud-stack/dast-ai
+          path: dast-ai
+          token: ${{ secrets.DAST_AI_PAT || github.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: dast-ai/requirements.txt
+
+      - name: Install DAST-AI Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r dast-ai/requirements.txt
+
+      - name: Start OWASP ZAP Daemon
+        run: |
+          docker run -d --name zap --network host \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap.sh -daemon -host 127.0.0.1 -port 8090 \
+            -config api.key=ci-zap-secret-key \
+            -config api.addrs.addr.name=.* \
+            -config api.addrs.addr.regex=true
+
+          echo "Menunggu OWASP ZAP daemon aktif di port 8090..."
+          timeout 60 bash -c 'until curl -s "http://127.0.0.1:8090/JSON/core/view/version/?apikey=ci-zap-secret-key" > /dev/null; do sleep 2; done'
+          echo "OWASP ZAP daemon siap digunakan!"
+
+      - name: Start DAST-AI Orchestrator
+        env:
+          ENVIRONMENT: staging
+          ALLOWED_HOSTS: '["127.0.0.1", "localhost"]'
+          REQUIRE_PRIVATE_IP: "true"
+          ZAP_URL: "http://127.0.0.1:8090"
+          ZAP_API_KEY: "ci-zap-secret-key"
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_MODEL: "claude-sonnet-5-5"
+          THREADS_PER_HOST: "2"
+          DELAY_MS: "100"
+          MAX_SPIDER_MINUTES: "1"
+          MAX_SCAN_MINUTES: "2"
+        run: |
+          cd dast-ai
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          sleep 3
+          curl -s http://127.0.0.1:8000/health || (echo "DAST-AI Orchestrator gagal aktif" && exit 1)
+          echo "DAST-AI Orchestrator berjalan di http://127.0.0.1:8000"
+
+      - name: Run DAST Scan
+        run: |
+          python dast-ai/scripts/ci_scan.py \
+            --target-url "http://127.0.0.1:4173" \
+            --framework "react" \
+            --scan-mode "passive" \
+            --api-url "http://127.0.0.1:8000" \
+            --fail-on "high" \
+            --poll-interval 3 \
+            --timeout 300 \
+            --output-json dast-report.json \
+            --output-md dast-report.md
+
+      - name: Upload Security Report Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-ai-security-reports
+          path: |
+            dast-report.json
+            dast-report.md
+          if-no-files-found: warn
