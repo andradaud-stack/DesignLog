@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Lock, ShieldCheck } from 'lucide-react';
+import { Sun, Moon, Lock, ShieldCheck, Eye } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
 
 export const MobileHeader: React.FC = () => {
@@ -11,6 +11,7 @@ export const MobileHeader: React.FC = () => {
     isAdminLoggedIn,
     logoutAdmin,
     setIsAuthModalOpen,
+    navigateToPublic,
   } = useWorks();
 
   return (
@@ -61,6 +62,16 @@ export const MobileHeader: React.FC = () => {
               <span className="text-[10px]">Login</span>
             </>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={navigateToPublic}
+          className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800 shadow-sm"
+          title="Lihat Halaman Publik"
+          aria-label="Lihat Halaman Publik"
+        >
+          <Eye className="w-4 h-4" />
         </button>
 
         <button

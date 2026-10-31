@@ -19,6 +19,7 @@ import { PdfPreviewModal } from './components/pdf/PdfPreviewModal';
 import { PresentationModal } from './components/showcase/PresentationModal';
 import { ToastContainer } from './components/common/ToastContainer';
 import { AuthModal } from './components/modals/AuthModal';
+import { PublicShowcase } from './components/public/PublicShowcase';
 
 const MainContent: React.FC = () => {
   const { activeTab, isPresentationOpen, setIsPresentationOpen, presentationIndex } = useWorks();
@@ -60,15 +61,25 @@ const MainContent: React.FC = () => {
         initialIndex={presentationIndex}
       />
       <AuthModal />
-      <ToastContainer />
     </div>
+  );
+};
+
+const AppRoot: React.FC = () => {
+  const { currentRoute } = useWorks();
+
+  return (
+    <>
+      {currentRoute === 'public' ? <PublicShowcase /> : <MainContent />}
+      <ToastContainer />
+    </>
   );
 };
 
 export function App() {
   return (
     <WorksProvider>
-      <MainContent />
+      <AppRoot />
     </WorksProvider>
   );
 }

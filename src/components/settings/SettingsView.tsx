@@ -21,6 +21,9 @@ import {
   Database,
   RefreshCw,
   ShieldCheck,
+  Copy,
+  Globe,
+  KeyRound,
 } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
 import type { UserProfile } from '../../types/user';
@@ -45,7 +48,13 @@ export const SettingsView: React.FC = () => {
     isAdminLoggedIn,
     adminUser,
     logoutAdmin,
+    adminSlug,
+    updateAdminSlug,
+    navigateToPublic,
+    showToast,
   } = useWorks();
+
+  const [customSlugInput, setCustomSlugInput] = useState(adminSlug);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarUploadRef = useRef<HTMLInputElement>(null);
@@ -606,6 +615,90 @@ export const SettingsView: React.FC = () => {
               <span>Login sebagai Admin (Buka Hak Akses Editor)</span>
             </button>
           )}
+        </div>
+
+        {/* 4.5. OBFUSCATED ADMIN PORTAL & SECRET URL */}
+        <div className="mt-6 pt-6 border-t border-slate-100 dark:border-navy-800 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-display font-bold text-sm sm:text-base text-navy-950 dark:text-white flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-purple-500" />
+                <span>URL Rahasia Admin Workspace (Obfuscated Slug)</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Akses admin disembunyikan dari URL standar <code>/admin</code> agar tidak dapat ditebak oleh audiens umum atau bot scanner luar.
+              </p>
+            </div>
+            <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-bold self-start sm:self-auto">
+              Obfuscation Guard Active
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
+                  URL Akses Admin Saat Ini:
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="px-3 py-1.5 rounded-xl bg-white dark:bg-navy-900 border border-slate-200 dark:border-navy-800 text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 select-all">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/${adminSlug}` : `/${adminSlug}`}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        navigator.clipboard.writeText(`${window.location.origin}/${adminSlug}`);
+                        showToast('Link rahasia admin berhasil disalin ke clipboard!', 'success');
+                      }
+                    }}
+                    className="p-2 rounded-xl bg-white dark:bg-navy-900 hover:bg-slate-100 dark:hover:bg-navy-800 border border-slate-200 dark:border-navy-800 text-slate-600 dark:text-slate-300 transition-all text-xs flex items-center gap-1 font-semibold"
+                    title="Salin Link Rahasia"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin Link</span>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={navigateToPublic}
+                className="px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 self-start sm:self-center"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Lihat Tampilan Publik (/)</span>
+              </button>
+            </div>
+
+            {/* Custom Slug Configurator */}
+            <div className="pt-2 border-t border-slate-200/60 dark:border-navy-900 flex flex-col sm:flex-row sm:items-center gap-2.5">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
+                Ubah Slug Rahasia:
+              </span>
+              <div className="flex-1 flex items-center gap-2 bg-white dark:bg-navy-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-navy-800">
+                <span className="text-xs text-slate-400 font-mono">/</span>
+                <input
+                  type="text"
+                  value={customSlugInput}
+                  onChange={(e) => setCustomSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                  placeholder="studio-89rf"
+                  className="w-full bg-transparent text-xs font-mono font-bold text-navy-950 dark:text-white outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!customSlugInput.trim()) return;
+                  updateAdminSlug(customSlugInput.trim());
+                  showToast(`URL rahasia admin diperbarui: /${customSlugInput.trim()}`, 'success');
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-navy-950 text-xs font-bold transition-all shrink-0 active:scale-95"
+              >
+                Simpan Slug Baru
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 

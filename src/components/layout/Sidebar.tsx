@@ -15,6 +15,8 @@ import {
   CheckSquare,
   Lock,
   ShieldCheck,
+  Eye,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
@@ -42,6 +44,7 @@ export const Sidebar: React.FC = () => {
     isAdminLoggedIn,
     adminUser,
     logoutAdmin,
+    navigateToPublic,
   } = useWorks();
 
   const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
@@ -127,6 +130,20 @@ export const Sidebar: React.FC = () => {
             2026
           </span>
         </div>
+
+        {/* Public Showcase Switcher Pill */}
+        <button
+          type="button"
+          onClick={navigateToPublic}
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100/80 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold transition-all group shadow-xs"
+          title="Beralih ke tampilan etalase publik yang dilihat audiens luar"
+        >
+          <span className="flex items-center gap-2">
+            <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span>Lihat Etalase Publik</span>
+          </span>
+          <ExternalLink className="w-3.5 h-3.5 text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+        </button>
 
         {/* Current Scope Switcher */}
         <div className="relative">

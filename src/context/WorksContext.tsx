@@ -149,6 +149,15 @@ interface WorksContextType {
   setupAdmin: (username: string, email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logoutAdmin: () => Promise<void>;
   changeAdminPassword: (currentPassword: string, newPassword: string, username?: string, email?: string) => Promise<{ success: boolean; message?: string }>;
+
+  // Routing & Secret Admin Access
+  currentRoute: 'public' | 'admin';
+  adminSlug: string;
+  navigateToAdmin: () => void;
+  navigateToPublic: () => void;
+  updateAdminSlug: (slug: string) => void;
+  selectedPublicWork: Work | null;
+  setSelectedPublicWork: (work: Work | null) => void;
 }
 
 const WorksContext = createContext<WorksContextType | undefined>(undefined);
@@ -231,6 +240,79 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     return DEFAULT_USER_PROFILE;
   });
+
+  // Secret Admin Portal Routing
+  const [adminSlug, setAdminSlug] = useState<string>(() => {
+    try {
+      return localStorage.getItem('designlog_admin_slug') || 'studio-89rf';
+    } catch {
+      return 'studio-89rf';
+    }
+  });
+
+  const getInitialRoute = (slug: string): 'public' | 'admin' => {
+    if (typeof window === 'undefined') return 'public';
+    const path = window.location.pathname.replace(/^\/+/, '').toLowerCase();
+    const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+    const target = slug.toLowerCase();
+
+    // Conceal admin portal: if anyone visits /admin or /dashboard, redirect to /
+    if (path === 'admin' || hash === 'admin' || path === 'dashboard' || hash === 'dashboard') {
+      try {
+        window.history.replaceState(null, '', '/');
+      } catch {}
+      return 'public';
+    }
+
+    if (path === target || hash === target || path.startsWith(`${target}/`)) {
+      return 'admin';
+    }
+    return 'public';
+  };
+
+  const [currentRoute, setCurrentRoute] = useState<'public' | 'admin'>(() => getInitialRoute(adminSlug));
+  const [selectedPublicWork, setSelectedPublicWork] = useState<Work | null>(null);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(getInitialRoute(adminSlug));
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, [adminSlug]);
+
+  const navigateToAdmin = () => {
+    try {
+      window.history.pushState(null, '', '/' + adminSlug);
+    } catch {}
+    setCurrentRoute('admin');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToPublic = () => {
+    try {
+      window.history.pushState(null, '', '/');
+    } catch {}
+    setCurrentRoute('public');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const updateAdminSlug = (newSlug: string) => {
+    const cleaned = newSlug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'studio-89rf';
+    setAdminSlug(cleaned);
+    try {
+      localStorage.setItem('designlog_admin_slug', cleaned);
+    } catch {}
+    if (currentRoute === 'admin') {
+      try {
+        window.history.replaceState(null, '', '/' + cleaned);
+      } catch {}
+    }
+  };
 
   // Admin Account Authentication State (TiDB Cloud Secured)
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -1399,6 +1481,15 @@ export const WorksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // TiDB Cloud & Connection Status
         dbStatus,
         checkDbConnection,
+
+        // Routing & Secret Admin Access
+        currentRoute,
+        adminSlug,
+        navigateToAdmin,
+        navigateToPublic,
+        updateAdminSlug,
+        selectedPublicWork,
+        setSelectedPublicWork,
       }}
     >
       {children}
