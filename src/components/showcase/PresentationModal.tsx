@@ -9,6 +9,7 @@ import {
   Minimize2,
 } from 'lucide-react';
 import { useWorks } from '../../context/WorksContext';
+import { resolveVideoUrl } from '../../utils/videoUtils';
 
 interface PresentationModalProps {
   isOpen: boolean;
@@ -25,9 +26,24 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [playableVideoSrc, setPlayableVideoSrc] = useState<string>('');
 
   const works = filteredWorks.length > 0 ? filteredWorks : [];
   const currentWork = works[currentIndex];
+
+  useEffect(() => {
+    let isMounted = true;
+    if (currentWork?.videoUri) {
+      resolveVideoUrl(currentWork.videoUri).then((url) => {
+        if (isMounted) setPlayableVideoSrc(url);
+      });
+    } else {
+      setPlayableVideoSrc('');
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [currentWork?.videoUri]);
 
   useEffect(() => {
     setCurrentIndex(initialIndex);
@@ -144,7 +160,7 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
         <div className="relative max-h-full max-w-full flex items-center justify-center animate-scale-in">
           {currentWork.videoUri ? (
             <video
-              src={currentWork.videoUri}
+              src={playableVideoSrc || currentWork.videoUri}
               poster={currentWork.imageUri}
               controls
               autoPlay

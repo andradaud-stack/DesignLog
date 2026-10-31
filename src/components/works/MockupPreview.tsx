@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Smartphone,
   Layers,
@@ -10,6 +10,7 @@ import {
   Building,
   Sparkles,
 } from 'lucide-react';
+import { resolveVideoUrl } from '../../utils/videoUtils';
 
 interface MockupPreviewProps {
   imageUri: string;
@@ -31,6 +32,21 @@ export const MockupPreview: React.FC<MockupPreviewProps> = ({
   dateStr,
 }) => {
   const [mockupType, setMockupType] = useState<'instagram' | 'standee' | 'acrylic'>('instagram');
+  const [playableSrc, setPlayableSrc] = useState<string>('');
+
+  useEffect(() => {
+    let isMounted = true;
+    if (videoUri) {
+      resolveVideoUrl(videoUri).then((url) => {
+        if (isMounted) setPlayableSrc(url);
+      });
+    } else {
+      setPlayableSrc('');
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [videoUri]);
   const isBoth = hotelId === 'hotel_both';
   const isSemarang = hotelId === 'hotel_semarang';
 
@@ -136,7 +152,7 @@ export const MockupPreview: React.FC<MockupPreviewProps> = ({
             <div className="relative aspect-square w-full bg-slate-950 flex items-center justify-center overflow-hidden">
               {videoUri ? (
                 <video
-                  src={videoUri}
+                  src={playableSrc || videoUri}
                   poster={imageUri}
                   autoPlay
                   loop

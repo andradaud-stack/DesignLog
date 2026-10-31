@@ -3,8 +3,8 @@
  * Enforces XSS prevention, safe protocol filtering, prototype pollution defense, and PIN hashing.
  */
 
-// Allowed URI schemes
-const SAFE_URL_PATTERN = /^(https?:\/\/|\/|data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);base64,)/i;
+// Allowed URI schemes (http/https, relative, blob, safe images and videos)
+const SAFE_URL_PATTERN = /^(https?:\/\/|\/|blob:|indexeddb:|data:(image\/(png|jpeg|jpg|webp|gif|svg\+xml)|video\/(mp4|webm|ogg|quicktime));base64,)/i;
 
 /**
  * Sanitizes URLs to prevent XSS via javascript:, data:text/html, vbscript:, etc.
@@ -15,7 +15,7 @@ export function sanitizeUrl(url: string | null | undefined): string {
   const trimmed = url.trim();
 
   // Block dangerous schemes explicitly
-  const dangerousPatterns = /^(javascript|vbscript|data(?!:image\/(png|jpeg|jpg|webp|gif|svg\+xml);base64,)|file):/i;
+  const dangerousPatterns = /^(javascript|vbscript|data(?!:(image\/(png|jpeg|jpg|webp|gif|svg\+xml)|video\/(mp4|webm|ogg|quicktime));base64,)|file):/i;
   if (dangerousPatterns.test(trimmed)) {
     console.warn('[Security] Blocked dangerous URI scheme:', trimmed.slice(0, 30));
     return '';

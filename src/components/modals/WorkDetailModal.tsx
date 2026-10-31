@@ -22,6 +22,7 @@ import { MockupPreview } from '../works/MockupPreview';
 import { BeforeAfterSlider } from '../works/BeforeAfterSlider';
 import { BrandPaletteBar } from '../works/BrandPaletteBar';
 import { PreflightChecklist } from '../works/PreflightChecklist';
+import { resolveVideoUrl } from '../../utils/videoUtils';
 
 export const WorkDetailModal: React.FC = () => {
   const {
@@ -37,6 +38,21 @@ export const WorkDetailModal: React.FC = () => {
 
   const [activeMediaTab, setActiveMediaTab] = useState<'artwork' | 'mockup' | 'compare'>('artwork');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [playableVideoSrc, setPlayableVideoSrc] = useState<string>('');
+
+  useEffect(() => {
+    let isMounted = true;
+    if (selectedWorkForDetail?.videoUri) {
+      resolveVideoUrl(selectedWorkForDetail.videoUri).then((url) => {
+        if (isMounted) setPlayableVideoSrc(url);
+      });
+    } else {
+      setPlayableVideoSrc('');
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedWorkForDetail?.videoUri]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -242,7 +258,7 @@ export const WorkDetailModal: React.FC = () => {
               {work.videoUri ? (
                 <div className="flex flex-col items-center max-w-full">
                   <video
-                    src={work.videoUri}
+                    src={playableVideoSrc || work.videoUri}
                     poster={work.imageUri}
                     controls
                     playsInline
@@ -270,7 +286,7 @@ export const WorkDetailModal: React.FC = () => {
           {activeMediaTab === 'mockup' && (
             <MockupPreview
               imageUri={work.imageUri}
-              videoUri={work.videoUri}
+              videoUri={playableVideoSrc || work.videoUri}
               title={work.title}
               description={work.description}
               hotelId={work.hotelId}

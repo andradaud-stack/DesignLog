@@ -14,6 +14,7 @@ import {
 import confetti from 'canvas-confetti';
 import { useWorks } from '../../context/WorksContext';
 import { compressImageFile } from '../../utils/imageUtils';
+import { extractVideoMetadata, saveVideoBlob, resolveVideoUrl } from '../../utils/videoUtils';
 import type { WorkStatus, DateCertainty, AspectRatio } from '../../types/work';
 
 export const AddWorkModal: React.FC = () => {
@@ -51,6 +52,11 @@ export const AddWorkModal: React.FC = () => {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [videoUri, setVideoUri] = useState('');
+  const [videoInputMethod, setVideoInputMethod] = useState<'upload' | 'url'>('upload');
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('');
+  const [isVideoProcessing, setIsVideoProcessing] = useState<boolean>(false);
+  const [isVideoDragging, setIsVideoDragging] = useState<boolean>(false);
   const [duration, setDuration] = useState('0:30');
   const [imageUri, setImageUri] = useState('');
   const [draftImageUri, setDraftImageUri] = useState('');
@@ -59,6 +65,7 @@ export const AddWorkModal: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
   const draftFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDateChange = (newDate: string) => {
@@ -103,6 +110,19 @@ export const AddWorkModal: React.FC = () => {
       setMediaType(editingWork.mediaType || (editingWork.videoUri ? 'video' : 'image'));
       setVideoUri(editingWork.videoUri || '');
       setDuration(editingWork.duration || '0:30');
+      setVideoFile(null);
+      if (editingWork.videoUri) {
+        if (editingWork.videoUri.startsWith('http')) {
+          setVideoInputMethod('url');
+          setVideoPreviewUrl(editingWork.videoUri);
+        } else {
+          setVideoInputMethod('upload');
+          resolveVideoUrl(editingWork.videoUri).then((url) => setVideoPreviewUrl(url));
+        }
+      } else {
+        setVideoPreviewUrl('');
+        setVideoInputMethod('upload');
+      }
       setImageUri(editingWork.imageUri);
       setDraftImageUri(editingWork.draftImageUri || '');
       setImageInputMethod(editingWork.imageUri.startsWith('data:') ? 'upload' : 'url');
@@ -125,6 +145,9 @@ export const AddWorkModal: React.FC = () => {
       setMediaType('image');
       setVideoUri('');
       setDuration('0:30');
+      setVideoFile(null);
+      setVideoPreviewUrl('');
+      setVideoInputMethod('upload');
       setImageUri('');
       setDraftImageUri('');
       setImageInputMethod('upload');
@@ -177,7 +200,54 @@ export const AddWorkModal: React.FC = () => {
     return () => window.removeEventListener('paste', handlePaste);
   }, [isAddModalOpen, editingWork, showToast]);
 
+  const handleVideoFileUpload = async (file: File) => {
+    if (!file.type.startsWith('video/') && !file.name.match(/\.(mp4|webm|mov|mkv|ogg)$/i)) {
+      showToast('Harap pilih file video yang valid (MP4, WebM, MOV)', 'error');
+      return;
+    }
+
+    setIsVideoProcessing(true);
+    try {
+      const previewUrl = URL.createObjectURL(file);
+      setVideoPreviewUrl(previewUrl);
+      setVideoFile(file);
+      setVideoInputMethod('upload');
+
+      const meta = await extractVideoMetadata(file);
+      if (meta.durationStr) {
+        setDuration(meta.durationStr);
+      }
+      if (meta.aspectRatio) {
+        setAspectRatio(meta.aspectRatio);
+        setDimensions(`${meta.width} × ${meta.height} px (${meta.aspectRatio})`);
+      }
+      // Auto-extract thumbnail frame as cover poster if not yet custom-set
+      if (!imageUri || imageUri.includes('unsplash.com')) {
+        setImageUri(meta.posterDataUrl);
+      }
+
+      showToast(`Video berhasil dimuat (${meta.durationStr}) & cover frame diekstrak!`, 'success');
+    } catch (err: any) {
+      console.warn('Error analyzing video:', err);
+      showToast('File video dimuat (preview siap).', 'success');
+    } finally {
+      setIsVideoProcessing(false);
+    }
+  };
+
   const handleFileUpload = async (file: File, isDraft = false) => {
+    // If user dropped or selected a video file, route directly to video handler!
+    if (file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mov|mkv|ogg)$/i)) {
+      if (isDraft) {
+        showToast('Draft revisi perbandingan hanya mendukung file gambar', 'info');
+        return;
+      }
+      setMediaType('video');
+      setCategoryId('cat_video_reels');
+      await handleVideoFileUpload(file);
+      return;
+    }
+
     if (!file.type.startsWith('image/')) {
       showToast('Please select a valid image file (PNG, JPG, WebP, SVG)', 'error');
       return;
@@ -242,7 +312,19 @@ export const AddWorkModal: React.FC = () => {
     const finalYear = finalDate ? parseInt(finalDate.split('-')[0], 10) || year : year;
     const finalMonth = finalDate ? parseInt(finalDate.split('-')[1], 10) || month : month;
 
-    requireEditorAuth(() => {
+    requireEditorAuth(async () => {
+      let finalVideoUri = videoUri.trim() || undefined;
+
+      if (mediaType === 'video' && videoFile) {
+        const targetId = isEditing && editingWork ? editingWork.id : `work_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        try {
+          finalVideoUri = await saveVideoBlob(targetId, videoFile);
+        } catch (err) {
+          console.warn('Failed saving video to IndexedDB:', err);
+          finalVideoUri = videoPreviewUrl;
+        }
+      }
+
       if (isEditing && editingWork) {
         updateWork(editingWork.id, {
           title,
@@ -260,7 +342,7 @@ export const AddWorkModal: React.FC = () => {
           colorSpace,
           aspectRatio,
           mediaType,
-          videoUri: mediaType === 'video' ? (videoUri.trim() || undefined) : undefined,
+          videoUri: mediaType === 'video' ? finalVideoUri : undefined,
           duration: mediaType === 'video' ? duration : undefined,
           imageUri: finalImageUri,
           draftImageUri: draftImageUri.trim() || undefined,
@@ -283,7 +365,7 @@ export const AddWorkModal: React.FC = () => {
           colorSpace,
           aspectRatio,
           mediaType,
-          videoUri: mediaType === 'video' ? (videoUri.trim() || undefined) : undefined,
+          videoUri: mediaType === 'video' ? finalVideoUri : undefined,
           duration: mediaType === 'video' ? duration : undefined,
           imageUri: finalImageUri,
           draftImageUri: draftImageUri.trim() || undefined,
@@ -390,37 +472,161 @@ export const AddWorkModal: React.FC = () => {
 
           {/* Video Stream Source (Only for video deliverables) */}
           {mediaType === 'video' && (
-            <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/30 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="p-4 sm:p-5 rounded-2xl bg-purple-500/5 border border-purple-500/30 space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <label className="font-bold text-navy-950 dark:text-white flex items-center gap-1.5 text-xs">
                   <Video className="w-4 h-4 text-purple-500" />
-                  <span>Video Stream Source (MP4, WebM, Cloud Link) *</span>
+                  <span>Video Deliverable Source (MP4, WebM, MOV) *</span>
                 </label>
-                <span className="text-[10px] font-mono text-purple-400">9:16 Vertical Video</span>
+
+                <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setVideoInputMethod('upload')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
+                      videoInputMethod === 'upload'
+                        ? 'bg-white dark:bg-navy-800 text-purple-600 dark:text-purple-400 shadow-xs'
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    Upload Video File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoInputMethod('url')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
+                      videoInputMethod === 'url'
+                        ? 'bg-white dark:bg-navy-800 text-purple-600 dark:text-purple-400 shadow-xs'
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    Video URL / Link
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2 space-y-1">
-                  <label className="text-[10px] text-slate-400 font-bold block">Video URL</label>
+              {videoInputMethod === 'upload' ? (
+                <div>
                   <input
-                    type="url"
-                    value={videoUri}
-                    onChange={(e) => setVideoUri(e.target.value)}
-                    placeholder="https://.../video.mp4 or Drive / Cloud video URL"
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white font-mono text-xs focus:ring-2 focus:ring-purple-500 outline-none"
+                    ref={videoFileInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,video/ogg,.mp4,.webm,.mov"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleVideoFileUpload(e.target.files[0]);
+                      }
+                    }}
                   />
+
+                  {videoPreviewUrl || videoUri ? (
+                    <div className="rounded-2xl border border-purple-500/30 bg-slate-950 p-4 flex flex-col items-center gap-3">
+                      <div className="relative max-h-72 w-full flex items-center justify-center overflow-hidden rounded-xl bg-black">
+                        <video
+                          src={videoPreviewUrl || videoUri}
+                          controls
+                          playsInline
+                          className="max-h-72 w-auto rounded-xl shadow-xl aspect-[9/16]"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between w-full text-xs px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-emerald-400 flex items-center gap-1 text-[11px]">
+                            <Check className="w-3.5 h-3.5" /> Video Ready ({duration})
+                          </span>
+                          <span className="text-[10px] font-mono text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-md">
+                            {aspectRatio}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => videoFileInputRef.current?.click()}
+                            className="text-purple-400 hover:text-purple-300 text-[11px] font-semibold underline"
+                          >
+                            Replace Video
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVideoFile(null);
+                              setVideoPreviewUrl('');
+                              setVideoUri('');
+                            }}
+                            className="text-rose-400 hover:text-rose-300 text-[11px] flex items-center gap-1 ml-2"
+                          >
+                            <Trash2 className="w-3 h-3" /> Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsVideoDragging(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        setIsVideoDragging(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsVideoDragging(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleVideoFileUpload(e.dataTransfer.files[0]);
+                        }
+                      }}
+                      onClick={() => videoFileInputRef.current?.click()}
+                      className={`relative border-2 border-dashed rounded-2xl p-6 transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
+                        isVideoDragging
+                          ? 'border-purple-500 bg-purple-500/15'
+                          : 'border-purple-300 dark:border-purple-800/70 hover:border-purple-500 bg-purple-500/5 dark:bg-purple-950/20'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-500 flex items-center justify-center mx-auto">
+                          <Video className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-navy-950 dark:text-white text-xs sm:text-sm">
+                            {isVideoProcessing ? 'Analyzing video & generating poster frame...' : 'Click to browse or drag & drop video file'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            MP4, WebM, MOV • Auto-extracts poster thumbnail &amp; calculates duration
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 font-bold block">Duration</label>
-                  <input
-                    type="text"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    placeholder="e.g. 0:30"
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white font-mono text-xs focus:ring-2 focus:ring-purple-500 outline-none"
-                  />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-[10px] text-slate-400 font-bold block">Video URL</label>
+                    <input
+                      type="url"
+                      value={videoUri}
+                      onChange={(e) => {
+                        setVideoUri(e.target.value);
+                        setVideoPreviewUrl(e.target.value);
+                      }}
+                      placeholder="https://.../video.mp4 or Drive / Cloud video URL"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white font-mono text-xs focus:ring-2 focus:ring-purple-500 outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-bold block">Duration</label>
+                    <input
+                      type="text"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      placeholder="e.g. 0:30"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800 text-navy-950 dark:text-white font-mono text-xs focus:ring-2 focus:ring-purple-500 outline-none"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -429,7 +635,7 @@ export const AddWorkModal: React.FC = () => {
             <div className="flex items-center justify-between">
               <label className="font-bold text-navy-950 dark:text-white flex items-center gap-1.5 text-xs">
                 <ImageIcon className="w-4 h-4 text-electric-500" />
-                <span>{mediaType === 'video' ? 'Video Cover / Poster Artwork *' : 'Primary Deliverable Artwork *'}</span>
+                <span>{mediaType === 'video' ? 'Video Cover / Poster Artwork (Auto-captured from video, or upload custom)' : 'Primary Deliverable Artwork *'}</span>
               </label>
 
               <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100 dark:bg-navy-950 border border-slate-200/80 dark:border-navy-800">
@@ -521,10 +727,16 @@ export const AddWorkModal: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-bold text-navy-950 dark:text-white text-xs sm:text-sm">
-                        {isCompressing ? 'Compressing and optimizing...' : 'Click to browse or drag & drop artwork'}
+                        {isCompressing
+                          ? 'Compressing and optimizing...'
+                          : mediaType === 'video'
+                          ? 'Click to browse or drag & drop custom cover artwork'
+                          : 'Click to browse or drag & drop artwork'}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        PNG, JPG, WebP, SVG • Or press <strong>Ctrl+V</strong> to paste from clipboard
+                        {mediaType === 'video'
+                          ? 'PNG, JPG, WebP • Otomatis diekstrak dari video jika dibiarkan kosong'
+                          : 'PNG, JPG, WebP, SVG • Or press Ctrl+V to paste from clipboard'}
                       </p>
                     </div>
                   </div>

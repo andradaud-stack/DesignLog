@@ -38,8 +38,17 @@ export const Dashboard: React.FC = () => {
   const totalWorks = works.length;
   const semarangWorks = works.filter((w) => w.hotelId === 'hotel_semarang').length;
   const jeparaWorks = works.filter((w) => w.hotelId === 'hotel_jepara').length;
+  const bothWorks = works.filter((w) => w.hotelId === 'hotel_both').length;
+
+  // Real portfolio shares (% of all deliverables in ledger)
   const semarangPercent = totalWorks > 0 ? Math.round((semarangWorks / totalWorks) * 100) : 0;
-  const jeparaPercent = totalWorks > 0 ? 100 - semarangPercent : 0;
+  const jeparaPercent = totalWorks > 0 ? Math.round((jeparaWorks / totalWorks) * 100) : 0;
+  const bothPercent = totalWorks > 0 ? Math.max(0, 100 - semarangPercent - jeparaPercent) : 0;
+
+  // Dual-Property Workload Ratio (proportion between Semarang vs Jepara direct outputs)
+  const propertyWorksTotal = semarangWorks + jeparaWorks;
+  const semarangRatio = propertyWorksTotal > 0 ? Math.round((semarangWorks / propertyWorksTotal) * 100) : 50;
+  const jeparaRatio = propertyWorksTotal > 0 ? 100 - semarangRatio : 50;
 
   // October 2026 works count
   const octoberWorks = works.filter((w) => w.month === 10 && w.year === 2026).length;
@@ -55,7 +64,8 @@ export const Dashboard: React.FC = () => {
     { id: 'cat_event', name: 'Event & Workshop', count: works.filter((w) => w.categoryId === 'cat_event').length, color: 'bg-indigo-500', text: 'text-indigo-500' },
     { id: 'cat_greeting', name: 'Greeting Cards', count: works.filter((w) => w.categoryId === 'cat_greeting').length, color: 'bg-emerald-500', text: 'text-emerald-500' },
     { id: 'cat_social_media', name: 'Social Media Feeds', count: works.filter((w) => w.categoryId === 'cat_social_media').length, color: 'bg-cyan-500', text: 'text-cyan-500' },
-    { id: 'cat_backdrop', name: 'Backdrop/Banner', count: works.filter((w) => w.categoryId === 'cat_backdrop').length, color: 'bg-purple-500', text: 'text-purple-500' },
+    { id: 'cat_video_reels', name: 'Video & Reels', count: works.filter((w) => w.categoryId === 'cat_video_reels' || w.mediaType === 'video').length, color: 'bg-purple-500', text: 'text-purple-500' },
+    { id: 'cat_backdrop', name: 'Backdrop/Banner', count: works.filter((w) => w.categoryId === 'cat_backdrop').length, color: 'bg-fuchsia-500', text: 'text-fuchsia-500' },
     { id: 'cat_marketing', name: 'Marketing Collateral', count: works.filter((w) => w.categoryId === 'cat_marketing').length, color: 'bg-rose-500', text: 'text-rose-500' },
     { id: 'cat_lainnya', name: 'Lainnya', count: works.filter((w) => w.categoryId === 'cat_lainnya').length, color: 'bg-slate-500', text: 'text-slate-500' },
   ];
@@ -339,27 +349,34 @@ export const Dashboard: React.FC = () => {
           <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-navy-950 flex overflow-hidden p-0.5 border border-slate-200/80 dark:border-navy-800">
             <div
               className="bg-amber-500 h-full rounded-l-full transition-all duration-700 relative group"
-              style={{ width: `${semarangPercent}%` }}
-              title={`Horison Semarang: ${semarangWorks} works (${semarangPercent}%)`}
+              style={{ width: `${semarangRatio}%` }}
+              title={`Horison Semarang: ${semarangWorks} works (${semarangRatio}% ratio • ${semarangPercent}% portfolio)`}
             />
             <div
               className="bg-cyan-500 h-full rounded-r-full transition-all duration-700 relative group"
-              style={{ width: `${jeparaPercent}%` }}
-              title={`Horison Jepara: ${jeparaWorks} works (${jeparaPercent}%)`}
+              style={{ width: `${jeparaRatio}%` }}
+              title={`Horison Jepara: ${jeparaWorks} works (${jeparaRatio}% ratio • ${jeparaPercent}% portfolio)`}
             />
           </div>
 
-          <div className="flex items-center justify-between text-xs font-medium">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-medium">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-md bg-amber-500" />
               <span className="text-slate-700 dark:text-slate-300 font-semibold">Horison Semarang:</span>
-              <span className="font-mono text-slate-500 dark:text-slate-400">{semarangWorks} works ({semarangPercent}%)</span>
+              <span className="font-mono text-slate-500 dark:text-slate-400">{semarangWorks} works ({semarangRatio}%)</span>
             </div>
+
+            {bothWorks > 0 && (
+              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                <span className="font-mono text-[11px]">+ {bothWorks} shared dual-unit works ({bothPercent}%)</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-md bg-cyan-500" />
               <span className="text-slate-700 dark:text-slate-300 font-semibold">Horison Jepara:</span>
-              <span className="font-mono text-slate-500 dark:text-slate-400">{jeparaWorks} works ({jeparaPercent}%)</span>
+              <span className="font-mono text-slate-500 dark:text-slate-400">{jeparaWorks} works ({jeparaRatio}%)</span>
             </div>
           </div>
         </div>
@@ -409,7 +426,7 @@ export const Dashboard: React.FC = () => {
                 {cat.name}
               </div>
               <span className="text-[10px] text-slate-400 mt-1 font-mono">
-                {Math.round((cat.count / totalWorks) * 100)}%
+                {totalWorks > 0 ? Math.round((cat.count / totalWorks) * 100) : 0}%
               </span>
             </div>
           ))}

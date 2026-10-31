@@ -25,8 +25,17 @@ export const Statistics: React.FC = () => {
   const totalWorks = periodFilteredWorks.length;
   const semarangWorks = periodFilteredWorks.filter((w) => w.hotelId === 'hotel_semarang');
   const jeparaWorks = periodFilteredWorks.filter((w) => w.hotelId === 'hotel_jepara');
+  const bothWorks = periodFilteredWorks.filter((w) => w.hotelId === 'hotel_both');
+
+  // Real percentage shares of total portfolio
   const semarangPercent = totalWorks > 0 ? Math.round((semarangWorks.length / totalWorks) * 100) : 0;
-  const jeparaPercent = totalWorks > 0 ? 100 - semarangPercent : 0;
+  const jeparaPercent = totalWorks > 0 ? Math.round((jeparaWorks.length / totalWorks) * 100) : 0;
+  const bothPercent = totalWorks > 0 ? Math.max(0, 100 - semarangPercent - jeparaPercent) : 0;
+
+  // Dual-Property Workload Ratio (proportion between Semarang vs Jepara)
+  const propertyWorksTotal = semarangWorks.length + jeparaWorks.length;
+  const semarangRatio = propertyWorksTotal > 0 ? Math.round((semarangWorks.length / propertyWorksTotal) * 100) : 50;
+  const jeparaRatio = propertyWorksTotal > 0 ? 100 - semarangRatio : 50;
 
   // KPI 2: Velocity
   const velocity = totalWorks > 0 ? (totalWorks / 4).toFixed(1) : '0.0';
@@ -64,18 +73,24 @@ export const Statistics: React.FC = () => {
     const catWorks = periodFilteredWorks.filter((w) => w.categoryId === cat.id);
     const smg = catWorks.filter((w) => w.hotelId === 'hotel_semarang').length;
     const jpr = catWorks.filter((w) => w.hotelId === 'hotel_jepara').length;
+    const shared = catWorks.filter((w) => w.hotelId === 'hotel_both').length;
     const count = catWorks.length;
     const pct = totalWorks > 0 ? `${((count / totalWorks) * 100).toFixed(1)}%` : '0%';
-    const smgPct = count > 0 ? `${Math.round((smg / count) * 100)}%` : '0%';
-    const jprPct = count > 0 ? `${100 - Math.round((smg / count) * 100)}%` : '0%';
+
+    // Workload split between Semarang and Jepara
+    const propSum = smg + jpr;
+    const smgPctNum = propSum > 0 ? Math.round((smg / propSum) * 100) : (count > 0 ? Math.round((smg / count) * 100) : 0);
+    const jprPctNum = propSum > 0 ? 100 - smgPctNum : (count > 0 ? Math.round((jpr / count) * 100) : 0);
+
     return {
       name: `${idx + 1}. ${cat.name}`,
       smg,
       jpr,
+      shared,
       total: count,
       pct,
-      smgPct,
-      jprPct,
+      smgPct: `${smgPctNum}%`,
+      jprPct: `${jprPctNum}%`,
     };
   });
 
@@ -166,16 +181,21 @@ export const Statistics: React.FC = () => {
               <span className="text-xs font-mono text-slate-500 dark:text-slate-400">Assets</span>
             </div>
             <div className="w-full bg-slate-100 dark:bg-navy-950 h-2 rounded-full overflow-hidden mt-2.5 flex">
-              <div className="bg-amber-500 h-full" style={{ width: `${semarangPercent}%` }} />
-              <div className="bg-cyan-500 h-full" style={{ width: `${jeparaPercent}%` }} />
+              <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${semarangRatio}%` }} title={`Semarang: ${semarangWorks.length} (${semarangRatio}% ratio)`} />
+              <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${jeparaRatio}%` }} title={`Jepara: ${jeparaWorks.length} (${jeparaRatio}% ratio)`} />
             </div>
           </div>
           <div className="pt-2.5 border-t border-slate-100 dark:border-navy-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-2 h-2 rounded-full bg-amber-500" /> Semarang: {semarangWorks.length}
+              <span className="w-2 h-2 rounded-full bg-amber-500" /> Semarang: {semarangWorks.length} ({semarangPercent}%)
             </span>
+            {bothWorks.length > 0 && (
+              <span className="hidden sm:flex items-center gap-1.5 font-medium">
+                <span className="w-2 h-2 rounded-full bg-indigo-500" /> Dual: {bothWorks.length} ({bothPercent}%)
+              </span>
+            )}
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-2 h-2 rounded-full bg-cyan-500" /> Jepara: {jeparaWorks.length}
+              <span className="w-2 h-2 rounded-full bg-cyan-500" /> Jepara: {jeparaWorks.length} ({jeparaPercent}%)
             </span>
           </div>
         </div>
@@ -290,7 +310,7 @@ export const Statistics: React.FC = () => {
                     {semarangWorks.length}
                   </span>
                   <span className="block text-[10px] font-mono text-slate-400 uppercase font-bold">
-                    Works ({semarangPercent}%)
+                    Works ({semarangPercent}% Portfolio • {semarangRatio}% Dual Ratio)
                   </span>
                 </div>
               </div>
@@ -368,7 +388,7 @@ export const Statistics: React.FC = () => {
                     {jeparaWorks.length}
                   </span>
                   <span className="block text-[10px] font-mono text-slate-400 uppercase font-bold">
-                    Works ({jeparaPercent}%)
+                    Works ({jeparaPercent}% Portfolio • {jeparaRatio}% Dual Ratio)
                   </span>
                 </div>
               </div>
